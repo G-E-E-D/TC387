@@ -20,6 +20,7 @@ typedef enum
     VEHICLE_DIAG_TEST_RIGHT_MOTOR,
     VEHICLE_DIAG_TEST_STEERING_MOTOR,
     VEHICLE_DIAG_STAGE1_START,
+    VEHICLE_DIAG_STAGE1_DRIVE,
     VEHICLE_DIAG_STAGE1_STOP,
     VEHICLE_DIAG_STAGE2_START,
     VEHICLE_DIAG_STOP,
@@ -33,6 +34,8 @@ typedef struct
 {
     VehicleDiagnosticAction action;
     float signed_duty;
+    float target_speed_mps;
+    float target_steering_rad;
 } VehicleDiagnosticRequest;
 
 typedef struct

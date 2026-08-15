@@ -84,6 +84,8 @@
 /* Stage-one guarded command limits. */
 #define STAGE1_MAX_SPEED_MPS                (2.0f)
 #define STAGE1_MAX_STEERING_RAD             (0.70f)
+#define STAGE1_DIAGNOSTIC_MAX_SPEED_MPS     (0.30f)
+#define STAGE1_DIAGNOSTIC_MAX_STEERING_RAD  (0.35f)
 #define STAGE1_STOP_DISTANCE_MARGIN_M       (0.15f)
 #define STAGE1_STOP_TIME_MARGIN_S           (0.30f)
 #define CALIBRATION_TEST_MAX_DUTY           (0.12f)

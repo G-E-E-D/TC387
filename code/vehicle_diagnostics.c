@@ -4,6 +4,7 @@
 #include "vehicle_types.h"
 
 #include <ctype.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,16 +41,90 @@ static bool parse_duty(const char *text, float *duty)
     return true;
 }
 
+static bool parse_stage1_drive(const char *text, float *speed_mps,
+                               float *steering_rad)
+{
+    char *end;
+    float speed;
+    float steering;
+
+    if((text == NULL) || (speed_mps == NULL) || (steering_rad == NULL))
+    {
+        return false;
+    }
+    speed = strtof(text, &end);
+    if(end == text)
+    {
+        return false;
+    }
+    while((*end == ' ') || (*end == '\t'))
+    {
+        ++end;
+    }
+    if(*end == '\0')
+    {
+        return false;
+    }
+    text = end;
+    steering = strtof(text, &end);
+    while((*end == ' ') || (*end == '\t'))
+    {
+        ++end;
+    }
+    if((end == text) || (*end != '\0') ||
+       !vehicle_float_is_finite(speed) ||
+       !vehicle_float_is_finite(steering) ||
+       (speed < 0.0f) ||
+       (speed > STAGE1_DIAGNOSTIC_MAX_SPEED_MPS) ||
+       (fabsf(steering) > STAGE1_DIAGNOSTIC_MAX_STEERING_RAD))
+    {
+        return false;
+    }
+    *speed_mps = speed;
+    *steering_rad = steering;
+    return true;
+}
+
 static void queue_action(VehicleDiagnostics *diagnostics,
                          VehicleDiagnosticAction action, float duty)
+{
+    if(diagnostics->request_pending)
+    {
+        const VehicleDiagnosticAction pending_action =
+            diagnostics->pending_request.action;
+        const bool incoming_stop = (action == VEHICLE_DIAG_STOP) ||
+                                   (action == VEHICLE_DIAG_STAGE1_STOP);
+        const bool pending_global_stop =
+            pending_action == VEHICLE_DIAG_STOP;
+
+        /* Stop commands must never be lost behind a motion command.  A
+         * pending global STOP also cannot be downgraded by STAGE1 STOP. */
+        if(!incoming_stop || pending_global_stop)
+        {
+            set_response(diagnostics, "ERR command queue busy");
+            return;
+        }
+    }
+    diagnostics->pending_request.action = action;
+    diagnostics->pending_request.signed_duty = duty;
+    diagnostics->pending_request.target_speed_mps = 0.0f;
+    diagnostics->pending_request.target_steering_rad = 0.0f;
+    diagnostics->request_pending = true;
+    set_response(diagnostics, "OK");
+}
+
+static void queue_stage1_drive(VehicleDiagnostics *diagnostics,
+                               float speed_mps, float steering_rad)
 {
     if(diagnostics->request_pending)
     {
         set_response(diagnostics, "ERR command queue busy");
         return;
     }
-    diagnostics->pending_request.action = action;
-    diagnostics->pending_request.signed_duty = duty;
+    diagnostics->pending_request.action = VEHICLE_DIAG_STAGE1_DRIVE;
+    diagnostics->pending_request.signed_duty = 0.0f;
+    diagnostics->pending_request.target_speed_mps = speed_mps;
+    diagnostics->pending_request.target_steering_rad = steering_rad;
     diagnostics->request_pending = true;
     set_response(diagnostics, "OK");
 }
@@ -59,6 +134,8 @@ static void parse_command(VehicleDiagnostics *diagnostics)
     char *command = diagnostics->command;
     char *p;
     float duty;
+    float speed_mps;
+    float steering_rad;
     for(p = command; *p != '\0'; ++p)
     {
         *p = (char)toupper((unsigned char)*p);
@@ -70,7 +147,7 @@ static void parse_command(VehicleDiagnostics *diagnostics)
     if((*command == '\0') || (strcmp(command, "HELP") == 0))
     {
         set_response(diagnostics,
-            "CMDS LOG/ENC/STEER/MOTOR/STAGE1/STAGE2/STOP/CONFIG/FAULT/CAL/IDLE");
+            "CMDS LOG/ENC/STEER/MOTOR/STAGE1/DRIVE/STAGE2/STOP/CONFIG/FAULT/CAL/IDLE");
     }
     else if(strcmp(command, "LOG START") == 0)
     {
@@ -118,6 +195,18 @@ static void parse_command(VehicleDiagnostics *diagnostics)
     {
         queue_action(diagnostics, VEHICLE_DIAG_STAGE1_START, 0.0f);
     }
+    else if(strncmp(command, "DRIVE ", 6U) == 0)
+    {
+        if(parse_stage1_drive(command + 6, &speed_mps, &steering_rad))
+        {
+            queue_stage1_drive(diagnostics, speed_mps, steering_rad);
+        }
+        else
+        {
+            set_response(diagnostics,
+                "ERR DRIVE speed[0,0.30] steering[-0.35,0.35]");
+        }
+    }
     else if(strcmp(command, "STAGE1 STOP") == 0)
     {
         queue_action(diagnostics, VEHICLE_DIAG_STAGE1_STOP, 0.0f);
@@ -160,6 +249,8 @@ void vehicle_diagnostics_init(VehicleDiagnostics *diagnostics)
         diagnostics->length = 0U;
         diagnostics->pending_request.action = VEHICLE_DIAG_NONE;
         diagnostics->pending_request.signed_duty = 0.0f;
+        diagnostics->pending_request.target_speed_mps = 0.0f;
+        diagnostics->pending_request.target_steering_rad = 0.0f;
         diagnostics->request_pending = false;
         diagnostics->response[0] = '\0';
         diagnostics->response_pending = false;
@@ -214,6 +305,8 @@ bool vehicle_diagnostics_take_request(VehicleDiagnostics *diagnostics,
     diagnostics->request_pending = false;
     diagnostics->pending_request.action = VEHICLE_DIAG_NONE;
     diagnostics->pending_request.signed_duty = 0.0f;
+    diagnostics->pending_request.target_speed_mps = 0.0f;
+    diagnostics->pending_request.target_steering_rad = 0.0f;
     return true;
 }
 

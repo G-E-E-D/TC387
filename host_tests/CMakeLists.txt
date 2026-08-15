@@ -10,6 +10,7 @@ add_executable(vehicle_host_tests
     test_vehicle.c
     ../code/vehicle_calibration.c
     ../code/vehicle_control.c
+    ../code/vehicle_diagnostics.c
     ../code/vehicle_encoder.c
     ../code/vehicle_fault.c
     ../code/vehicle_localization.c

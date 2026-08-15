@@ -278,6 +278,7 @@ static void handle_state_entry(uint64_t now_us)
             vehicle_control_reset(&g_app.control);
             g_app.target_speed_mps = 0.0f;
             g_app.target_steering_rad = 0.0f;
+            stage1_invalidate_external_command();
             vehicle_path_reset();
             sample.x_m = g_app.telemetry.pose.x_m;
             sample.y_m = g_app.telemetry.pose.y_m;
@@ -944,6 +945,32 @@ static void handle_diagnostic_request(const VehicleDiagnosticRequest *request,
                 log_text("# DENIED,stage1 requires all drivers, valid calibration and IDLE/CAL mode\r\n");
             }
             break;
+        case VEHICLE_DIAG_STAGE1_DRIVE:
+            if(g_app.calibration_valid && g_app.hal_status.critical_ready &&
+               (g_app.state_machine.state == VEHICLE_STATE_STAGE1_RECORD) &&
+               !g_app.stage1_stop_pending &&
+               !g_app.controlled_stop_active &&
+               vehicle_safety_output_is_allowed(&g_app.safety,
+                                                &g_app.faults))
+            {
+                Stage1ControlCommand command;
+
+                command.target_speed_mps = vehicle_clampf(
+                    request->target_speed_mps, 0.0f,
+                    STAGE1_DIAGNOSTIC_MAX_SPEED_MPS);
+                command.target_steering_rad = vehicle_clampf(
+                    request->target_steering_rad,
+                    -STAGE1_DIAGNOSTIC_MAX_STEERING_RAD,
+                    STAGE1_DIAGNOSTIC_MAX_STEERING_RAD);
+                command.valid = true;
+                stage1_set_external_command(&command);
+            }
+            else
+            {
+                stage1_invalidate_external_command();
+                log_text("# DENIED,DRIVE requires active safe STAGE1_RECORD\r\n");
+            }
+            break;
         case VEHICLE_DIAG_STAGE1_STOP:
             if(g_app.state_machine.state == VEHICLE_STATE_STAGE1_RECORD)
             {
@@ -1183,6 +1210,7 @@ bool vehicle_app_init(void)
     {
         log_text("# BLOCKED: automatic mode needs MT6701 P5 protocol/line order; select SSI or AB in vehicle_hardware_config.h\r\n");
     }
+    log_text("# DRIVE speed_mps steering_rad: STAGE1 only, max 0.30 m/s and 0.35 rad, repeat within 150 ms\r\n");
     print_configuration();
     update_state_machine(now_us);
     update_telemetry(now_us);

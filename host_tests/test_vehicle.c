@@ -13,6 +13,7 @@ typedef int vehicle_host_tests_are_not_target_firmware;
 #include "vehicle_calibration.h"
 #include "vehicle_config.h"
 #include "vehicle_control.h"
+#include "vehicle_diagnostics.h"
 #include "vehicle_encoder.h"
 #include "vehicle_fault.h"
 #include "vehicle_localization.h"
@@ -72,6 +73,20 @@ static ImuSample make_imu_sample(uint64_t timestamp_us, float gyro_z_radps)
     sample.temperature_c = 25.0f;
     sample.accel_gyro_valid = true;
     return sample;
+}
+
+static void feed_diagnostic_text(VehicleDiagnostics *diagnostics,
+                                 const char *text)
+{
+    if((diagnostics == NULL) || (text == NULL))
+    {
+        return;
+    }
+    while(*text != '\0')
+    {
+        vehicle_diagnostics_feed_byte(diagnostics, (uint8_t)*text);
+        ++text;
+    }
 }
 
 static bool run_localization_case(float speed_mps, float curvature_per_m,
@@ -1325,6 +1340,136 @@ static bool test_24_wheel_mismatch_requests_controlled_stop(void)
     return true;
 }
 
+static bool test_25_diagnostic_drive_parse_and_queue(void)
+{
+    static const char *const invalid_commands[] =
+    {
+        "DRIVE -0.01 0\r",
+        "DRIVE 0.301 0\r",
+        "DRIVE 0.1 0.351\r",
+        "DRIVE 0.1 -0.351\r",
+        "DRIVE NAN 0\r",
+        "DRIVE 0 nan\r",
+        "DRIVE 0.1\r",
+        "DRIVE \r",
+        "DRIVE 0.1 0.2 EXTRA\r"
+    };
+    VehicleDiagnostics diagnostics;
+    VehicleDiagnosticRequest request;
+    char response[VEHICLE_COMMAND_BUFFER_SIZE];
+    size_t index;
+
+    vehicle_diagnostics_init(&diagnostics);
+    TEST_REQUIRE(!diagnostics.request_pending);
+    TEST_REQUIRE(diagnostics.pending_request.action == VEHICLE_DIAG_NONE);
+
+    feed_diagnostic_text(&diagnostics, "dRiVe 0.30 -0.35\r");
+    TEST_REQUIRE(diagnostics.request_pending);
+    TEST_REQUIRE(vehicle_diagnostics_take_response(
+        &diagnostics, response, sizeof(response)));
+    TEST_REQUIRE(strcmp(response, "OK\r\n") == 0);
+
+    /* A full one-entry queue must retain the first command. */
+    feed_diagnostic_text(&diagnostics, "DRIVE 0.10 0.20\n");
+    TEST_REQUIRE(diagnostics.request_pending);
+    TEST_REQUIRE(vehicle_diagnostics_take_response(
+        &diagnostics, response, sizeof(response)));
+    TEST_REQUIRE(strcmp(response, "ERR command queue busy\r\n") == 0);
+    TEST_REQUIRE(vehicle_diagnostics_take_request(&diagnostics, &request));
+    TEST_REQUIRE(request.action == VEHICLE_DIAG_STAGE1_DRIVE);
+    TEST_REQUIRE(nearly_equal(request.signed_duty, 0.0f, 0.0f));
+    TEST_REQUIRE(nearly_equal(request.target_speed_mps, 0.30f, 1.0e-6f));
+    TEST_REQUIRE(nearly_equal(request.target_steering_rad, -0.35f,
+                              1.0e-6f));
+    TEST_REQUIRE(!vehicle_diagnostics_take_request(&diagnostics, &request));
+    TEST_REQUIRE(!diagnostics.request_pending);
+    TEST_REQUIRE(diagnostics.pending_request.action == VEHICLE_DIAG_NONE);
+    TEST_REQUIRE(nearly_equal(
+        diagnostics.pending_request.target_speed_mps, 0.0f, 0.0f));
+    TEST_REQUIRE(nearly_equal(
+        diagnostics.pending_request.target_steering_rad, 0.0f, 0.0f));
+
+    /* A new mixed-case command is accepted after consuming the queue. */
+    feed_diagnostic_text(&diagnostics, "DrIvE 0.125 +0.25\r");
+    TEST_REQUIRE(vehicle_diagnostics_take_request(&diagnostics, &request));
+    TEST_REQUIRE(request.action == VEHICLE_DIAG_STAGE1_DRIVE);
+    TEST_REQUIRE(nearly_equal(request.target_speed_mps, 0.125f, 1.0e-6f));
+    TEST_REQUIRE(nearly_equal(request.target_steering_rad, 0.25f,
+                              1.0e-6f));
+    TEST_REQUIRE(vehicle_diagnostics_take_response(
+        &diagnostics, response, sizeof(response)));
+    TEST_REQUIRE(strcmp(response, "OK\r\n") == 0);
+
+    for(index = 0U; index < ARRAY_COUNT(invalid_commands); ++index)
+    {
+        request.action = VEHICLE_DIAG_PRINT_CONFIG;
+        request.signed_duty = 1.0f;
+        request.target_speed_mps = 1.0f;
+        request.target_steering_rad = 1.0f;
+        feed_diagnostic_text(&diagnostics, invalid_commands[index]);
+        TEST_REQUIRE(!vehicle_diagnostics_take_request(&diagnostics,
+                                                       &request));
+        TEST_REQUIRE(request.action == VEHICLE_DIAG_PRINT_CONFIG);
+        TEST_REQUIRE(nearly_equal(request.target_speed_mps, 1.0f, 0.0f));
+        TEST_REQUIRE(nearly_equal(request.target_steering_rad, 1.0f, 0.0f));
+        TEST_REQUIRE(vehicle_diagnostics_take_response(
+            &diagnostics, response, sizeof(response)));
+        TEST_REQUIRE(strncmp(response, "ERR ", 4U) == 0);
+        TEST_REQUIRE(!diagnostics.request_pending);
+    }
+    return true;
+}
+
+static bool test_26_diagnostic_stop_preempts_motion(void)
+{
+    VehicleDiagnostics diagnostics;
+    VehicleDiagnosticRequest request;
+    char response[VEHICLE_COMMAND_BUFFER_SIZE];
+
+    vehicle_diagnostics_init(&diagnostics);
+    feed_diagnostic_text(&diagnostics,
+                         "DRIVE 0.20 0.10\nSTOP\n");
+    TEST_REQUIRE(vehicle_diagnostics_take_response(
+        &diagnostics, response, sizeof(response)));
+    TEST_REQUIRE(strcmp(response, "OK\r\n") == 0);
+    TEST_REQUIRE(vehicle_diagnostics_take_request(&diagnostics, &request));
+    TEST_REQUIRE(request.action == VEHICLE_DIAG_STOP);
+    TEST_REQUIRE(nearly_equal(request.signed_duty, 0.0f, 0.0f));
+    TEST_REQUIRE(nearly_equal(request.target_speed_mps, 0.0f, 0.0f));
+    TEST_REQUIRE(nearly_equal(request.target_steering_rad, 0.0f, 0.0f));
+
+    vehicle_diagnostics_init(&diagnostics);
+    feed_diagnostic_text(&diagnostics,
+                         "STOP\nDRIVE 0.20 0.10\n");
+    TEST_REQUIRE(vehicle_diagnostics_take_response(
+        &diagnostics, response, sizeof(response)));
+    TEST_REQUIRE(strcmp(response, "ERR command queue busy\r\n") == 0);
+    TEST_REQUIRE(vehicle_diagnostics_take_request(&diagnostics, &request));
+    TEST_REQUIRE(request.action == VEHICLE_DIAG_STOP);
+
+    vehicle_diagnostics_init(&diagnostics);
+    feed_diagnostic_text(&diagnostics,
+                         "DRIVE 0.20 0.10\nSTAGE1 STOP\n");
+    TEST_REQUIRE(vehicle_diagnostics_take_response(
+        &diagnostics, response, sizeof(response)));
+    TEST_REQUIRE(strcmp(response, "OK\r\n") == 0);
+    TEST_REQUIRE(vehicle_diagnostics_take_request(&diagnostics, &request));
+    TEST_REQUIRE(request.action == VEHICLE_DIAG_STAGE1_STOP);
+    TEST_REQUIRE(nearly_equal(request.target_speed_mps, 0.0f, 0.0f));
+    TEST_REQUIRE(nearly_equal(request.target_steering_rad, 0.0f, 0.0f));
+
+    vehicle_diagnostics_init(&diagnostics);
+    feed_diagnostic_text(&diagnostics,
+                         "STOP\nSTAGE1 STOP\n");
+    TEST_REQUIRE(vehicle_diagnostics_take_response(
+        &diagnostics, response, sizeof(response)));
+    TEST_REQUIRE(strcmp(response, "ERR command queue busy\r\n") == 0);
+    TEST_REQUIRE(vehicle_diagnostics_take_request(&diagnostics, &request));
+    TEST_REQUIRE(request.action == VEHICLE_DIAG_STOP);
+    TEST_REQUIRE(!vehicle_diagnostics_take_request(&diagnostics, &request));
+    return true;
+}
+
 int main(void)
 {
     static const TestCase tests[] =
@@ -1352,7 +1497,9 @@ int main(void)
         { "21 near-closed path finish/progress gate", test_21_near_closed_path_finish_requires_progress },
         { "22 invalid encoder immediate safety fault", test_22_invalid_encoder_faults_without_history },
         { "23 steering approach hysteresis both slopes", test_23_steering_approach_hysteresis_both_slopes },
-        { "24 wheel mismatch controlled-stop routing", test_24_wheel_mismatch_requests_controlled_stop }
+        { "24 wheel mismatch controlled-stop routing", test_24_wheel_mismatch_requests_controlled_stop },
+        { "25 diagnostic DRIVE parsing/queue", test_25_diagnostic_drive_parse_and_queue },
+        { "26 diagnostic STOP preemption", test_26_diagnostic_stop_preempts_motion }
     };
     size_t index;
     unsigned int passed = 0U;
