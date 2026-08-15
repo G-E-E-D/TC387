@@ -33,6 +33,7 @@
 * 2022-11-04       pudding            first version
 ********************************************************************************************************************/
 #include "zf_common_headfile.h"
+#include "code/vehicle_app.h"
 
 
 #pragma section all "cpu0_dsram"
@@ -48,19 +49,11 @@ int core0_main(void)
 {
     clock_init();                   // 获取时钟频率<务必保留>
     debug_init();                   // 初始化默认调试串口
-    // 此处编写用户代码 例如外设初始化代码等
-
-
-
-    // 此处编写用户代码 例如外设初始化代码等
+    (void)vehicle_app_init();
     cpu_wait_event_ready();         // 等待所有核心初始化完毕
     while (TRUE)
     {
-        // 此处编写需要循环执行的代码
-
-
-
-        // 此处编写需要循环执行的代码
+        vehicle_app_process();
     }
 }
 #pragma section all restore

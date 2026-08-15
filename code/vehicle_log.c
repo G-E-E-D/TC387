@@ -1,0 +1,147 @@
+#include "vehicle_log.h"
+
+#include "vehicle_config.h"
+
+#include <stdio.h>
+#include <string.h>
+
+static const char g_csv_header[] =
+    "timestamp_us,state,left_encoder_count,right_encoder_count,"
+    "left_speed_mps,right_speed_mps,mt6701_raw,steering_continuous_count,"
+    "steering_angle_rad,ax,ay,az,gx,gy,gz,imu_temperature,pose_x,pose_y,"
+    "pose_yaw,fused_speed,target_speed,target_steering,left_pwm,right_pwm,"
+    "steering_pwm,path_index,cross_track_error,heading_error,fault_flags\r\n";
+
+static bool log_push(VehicleLog *log, const uint8_t *data, size_t size)
+{
+    size_t i;
+    if((log == NULL) || (data == NULL) || (size > (size_t)(VEHICLE_LOG_BUFFER_SIZE - log->used)))
+    {
+        if(log != NULL)
+        {
+            log->dropped_lines++;
+        }
+        return false;
+    }
+    for(i = 0U; i < size; ++i)
+    {
+        log->data[log->write_index] = data[i];
+        log->write_index = (log->write_index + 1U) % VEHICLE_LOG_BUFFER_SIZE;
+    }
+    log->used += (uint32_t)size;
+    return true;
+}
+
+void vehicle_log_init(VehicleLog *log)
+{
+    if(log != NULL)
+    {
+        log->read_index = 0U;
+        log->write_index = 0U;
+        log->used = 0U;
+        log->dropped_lines = 0U;
+        log->csv_enabled = false;
+        log->header_pending = true;
+    }
+}
+
+void vehicle_log_set_csv_enabled(VehicleLog *log, bool enabled)
+{
+    if(log != NULL)
+    {
+        if(enabled && !log->csv_enabled)
+        {
+            log->header_pending = true;
+        }
+        log->csv_enabled = enabled;
+    }
+}
+
+bool vehicle_log_is_csv_enabled(const VehicleLog *log)
+{
+    return (log != NULL) && log->csv_enabled;
+}
+
+bool vehicle_log_enqueue_text(VehicleLog *log, const char *text)
+{
+    return (text != NULL) && log_push(log, (const uint8_t *)text, strlen(text));
+}
+
+bool vehicle_log_enqueue_csv(VehicleLog *log, const VehicleTelemetry *t)
+{
+    char line[VEHICLE_CSV_LINE_SIZE];
+    int count;
+    if((log == NULL) || (t == NULL) || !log->csv_enabled)
+    {
+        return false;
+    }
+    if(log->header_pending)
+    {
+        if(!log_push(log, (const uint8_t *)g_csv_header, sizeof(g_csv_header) - 1U))
+        {
+            return false;
+        }
+        log->header_pending = false;
+    }
+    count = snprintf(line, sizeof(line),
+        "%llu,%u,%lld,%lld,%.5f,%.5f,%u,%lld,%.6f,"
+        "%.5f,%.5f,%.5f,%.6f,%.6f,%.6f,%.3f,"
+        "%.5f,%.5f,%.6f,%.5f,%.5f,%.6f,%.5f,%.5f,%.5f,"
+        "%lu,%.5f,%.6f,%lu\r\n",
+        (unsigned long long)t->timestamp_us, (unsigned int)t->state,
+        (long long)t->left_wheel.count, (long long)t->right_wheel.count,
+        (double)t->left_wheel.speed_mps, (double)t->right_wheel.speed_mps,
+        (unsigned int)t->steering.raw_angle,
+        (long long)t->steering.continuous_count,
+        (double)t->steering.angle_rad,
+        (double)t->imu.acceleration_mps2[0],
+        (double)t->imu.acceleration_mps2[1],
+        (double)t->imu.acceleration_mps2[2],
+        (double)t->imu.angular_rate_radps[0],
+        (double)t->imu.angular_rate_radps[1],
+        (double)t->imu.angular_rate_radps[2],
+        (double)t->imu.temperature_c,
+        (double)t->pose.x_m, (double)t->pose.y_m, (double)t->pose.yaw_rad,
+        (double)t->pose.vehicle_speed_mps,
+        (double)t->target_speed_mps, (double)t->target_steering_rad,
+        (double)t->actuators.left_motor_duty,
+        (double)t->actuators.right_motor_duty,
+        (double)t->actuators.steering_motor_duty,
+        (unsigned long)t->tracker.nearest_index,
+        (double)t->tracker.cross_track_error_m,
+        (double)t->tracker.heading_error_rad,
+        (unsigned long)t->fault_flags);
+    if((count <= 0) || ((size_t)count >= sizeof(line)))
+    {
+        log->dropped_lines++;
+        return false;
+    }
+    return log_push(log, (const uint8_t *)line, (size_t)count);
+}
+
+size_t vehicle_log_flush(VehicleLog *log, size_t byte_budget,
+                         VehicleLogTryWriteByte writer, void *context)
+{
+    size_t sent = 0U;
+    if((log == NULL) || (writer == NULL))
+    {
+        return 0U;
+    }
+    while((sent < byte_budget) && (log->used > 0U))
+    {
+        uint8_t byte = log->data[log->read_index];
+        if(!writer(byte, context))
+        {
+            break;
+        }
+        log->read_index = (log->read_index + 1U) % VEHICLE_LOG_BUFFER_SIZE;
+        log->used--;
+        sent++;
+    }
+    return sent;
+}
+
+uint32_t vehicle_log_dropped_lines(const VehicleLog *log)
+{
+    return (log != NULL) ? log->dropped_lines : 0U;
+}
