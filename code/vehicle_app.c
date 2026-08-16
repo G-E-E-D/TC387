@@ -19,6 +19,7 @@
 #include "vehicle_reverse_tracker.h"
 #include "vehicle_safety.h"
 #include "vehicle_state_machine.h"
+#include "vehicle_test_mode.h"
 #include "vehicle_vision_camera.h"
 #include "vision_shared.h"
 
@@ -1145,6 +1146,9 @@ static void update_telemetry(uint64_t now_us)
 
 bool vehicle_app_init(void)
 {
+#if VEHICLE_TEMP_TEST_MODE
+    return vehicle_test_mode_init();
+#else
     VehicleImuConfig imu_config;
     uint64_t now_us;
     memset(&g_app, 0, sizeof(g_app));
@@ -1224,10 +1228,15 @@ bool vehicle_app_init(void)
     update_state_machine(now_us);
     update_telemetry(now_us);
     return vehicle_app_commissioning_ready();
+#endif
 }
 
 void vehicle_app_process(void)
 {
+#if VEHICLE_TEMP_TEST_MODE
+    vehicle_test_mode_process();
+    return;
+#else
     uint64_t now_us;
     uint32_t catchup = 0U;
     bool power_allowed;
@@ -1362,4 +1371,5 @@ void vehicle_app_process(void)
     {
         vehicle_hal_service_control_watchdog();
     }
+#endif
 }
