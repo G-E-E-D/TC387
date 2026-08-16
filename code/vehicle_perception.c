@@ -3,6 +3,10 @@
 #include "vehicle_config.h"
 #include "vehicle_math.h"
 
+#if VEHICLE_VISION_ENABLE
+#include "vision_shared.h"
+#endif
+
 #include <stddef.h>
 
 static Stage1ControlCommand g_external_command;
@@ -18,7 +22,36 @@ void perception_init(void)
 
 void perception_update(void)
 {
-    /* The integration boundary is complete; recognition is supplied later. */
+#if VEHICLE_VISION_ENABLE
+    vision_runtime_snapshot_t snapshot;
+    Stage1ControlCommand command;
+    int32_t error_q15;
+
+    /* A predicted/lost frame is deliberately not allowed to drive the car. */
+    if((vision_shared_read(&snapshot) == 0U) ||
+       (snapshot.result.valid == 0U) ||
+       (snapshot.result.predicted > VEHICLE_VISION_MAX_LOST_FRAMES) ||
+       (snapshot.result.confidence < VEHICLE_VISION_MIN_CONFIDENCE))
+    {
+        stage1_invalidate_external_command();
+        return;
+    }
+
+    error_q15 = (int32_t)snapshot.result.error_x_q15;
+    command.target_speed_mps = VEHICLE_VISION_TARGET_SPEED_MPS;
+    /* error_x_q15 is positive when the tag is right; positive vehicle
+     * steering is left, so the visual correction has the opposite sign. */
+    command.target_steering_rad = -((float)error_q15 / 32767.0f) *
+                                  VEHICLE_VISION_STEERING_RAD_LIMIT;
+    command.target_steering_rad = vehicle_clampf(
+        command.target_steering_rad,
+        -STAGE1_MAX_STEERING_RAD,
+        STAGE1_MAX_STEERING_RAD);
+    command.valid = true;
+    stage1_set_external_command(&command);
+#else
+    /* Serial DRIVE remains the explicit Stage-1 command source. */
+#endif
 }
 
 bool perception_get_stage1_command(Stage1ControlCommand *command)

@@ -25,15 +25,16 @@
 #define VEHICLE_MOTOR_PWM_HZ                 (20000U)
 
 /*
- * P5 has P10.1/P10.3/P10.2/P10.5, but the supplied schematic does not
- * label their MT6701 signal names or selected output protocol.  Both usable
- * implementations are built; keep UNCONFIRMED selected until P5 is verified.
+ * The confirmed steering sensor is the AB-output MT6701 module shown in the
+ * supplied pinout.  P5 routes its A/B channels to the TIM5 encoder pair;
+ * DIR/Z are not consumed by this application.  VCC/GND use the matching
+ * power pins on the vehicle schematic.
  */
 #define VEHICLE_MT6701_INTERFACE_UNCONFIRMED (0U)
 #define VEHICLE_MT6701_INTERFACE_SSI         (1U)
 #define VEHICLE_MT6701_INTERFACE_AB          (2U)
 #ifndef VEHICLE_MT6701_INTERFACE
-#define VEHICLE_MT6701_INTERFACE             VEHICLE_MT6701_INTERFACE_UNCONFIRMED
+#define VEHICLE_MT6701_INTERFACE             VEHICLE_MT6701_INTERFACE_AB
 #endif
 
 #define VEHICLE_MT6701_SPI_INDEX             SPI_1

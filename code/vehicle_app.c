@@ -19,6 +19,8 @@
 #include "vehicle_reverse_tracker.h"
 #include "vehicle_safety.h"
 #include "vehicle_state_machine.h"
+#include "vehicle_vision_camera.h"
+#include "vision_shared.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -1150,6 +1152,13 @@ bool vehicle_app_init(void)
     vehicle_diagnostics_init(&g_app.diagnostics);
     vehicle_display_init(&g_app.display);
     vehicle_fault_init(&g_app.faults);
+    vision_shared_init();
+#if VEHICLE_VISION_ENABLE
+    if(!vehicle_vision_camera_init())
+    {
+        log_text("# VISION camera init failed; visual commands remain invalid\r\n");
+    }
+#endif
     perception_init();
     vehicle_path_reset();
     vehicle_reverse_tracker_reset(&g_app.reverse_tracker);

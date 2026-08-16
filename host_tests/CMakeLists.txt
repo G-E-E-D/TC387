@@ -33,3 +33,18 @@ endif()
 
 enable_testing()
 add_test(NAME vehicle_host_tests COMMAND vehicle_host_tests)
+
+add_executable(vision_tag_tracker_host_tests
+    vision_tag_tracker_host_test.c
+    ../code/vision_tag_tracker.c
+)
+
+target_include_directories(vision_tag_tracker_host_tests PRIVATE ../code)
+
+if(MSVC)
+    target_compile_options(vision_tag_tracker_host_tests PRIVATE /W4)
+else()
+    target_compile_options(vision_tag_tracker_host_tests PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+add_test(NAME vision_tag_tracker_host_tests COMMAND vision_tag_tracker_host_tests)

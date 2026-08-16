@@ -12,6 +12,14 @@
 #define GPS_ENABLE                          (0)
 #define MAG_FUSION_ENABLE                   (0)
 
+/* The camera DVP wiring is confirmed.  MT9V03X keeps the library configuration
+ * of 188 x 120 pixels at 50 FPS (see zf_device_mt9v03x.h). */
+#define VEHICLE_VISION_ENABLE               (1)
+#define VEHICLE_VISION_TARGET_SPEED_MPS     (0.15f)
+#define VEHICLE_VISION_MIN_CONFIDENCE       (650U)
+#define VEHICLE_VISION_MAX_LOST_FRAMES      (0U)
+#define VEHICLE_VISION_STEERING_RAD_LIMIT   (0.35f)
+
 /* Static storage and path processing. */
 #define PATH_MAX_POINTS                     (4096U)
 #define PATH_POINT_SIZE_BYTES               (24U)
