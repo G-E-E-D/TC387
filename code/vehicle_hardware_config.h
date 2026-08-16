@@ -49,7 +49,12 @@
 #define VEHICLE_MT6701_AB_B_PIN              P10_2
 #define VEHICLE_MT6701_AB_Z_PIN              P10_5
 #define VEHICLE_MT6701_AB_DIR_PIN            P10_1
-/* ABI electrical polarity must be confirmed on the bench once. */
+/*
+ * DIR is checked against the A/B-decoder sign.  "positive" means the
+ * positive software A/B count direction, not physical left/right; confirm
+ * this electrical polarity on the bench before treating a mismatch as a
+ * sensor fault.
+ */
 #define VEHICLE_MT6701_DIR_HIGH_IS_POSITIVE  (1U)
 #define VEHICLE_MT6701_Z_ACTIVE_HIGH        (1U)
 

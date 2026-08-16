@@ -39,12 +39,17 @@ typedef struct
 typedef struct
 {
     uint16_t raw;
+    int64_t continuous_count;
+    int64_t last_index_interval_count;
     uint8_t a_level;
     uint8_t b_level;
     uint8_t z_level;
     uint8_t dir_level;
     uint32_t index_pulse_count;
+    uint32_t invalid_transition_count;
+    uint32_t dir_mismatch_count;
     bool index_seen;
+    bool last_index_interval_valid;
 } VehicleMt6701AbStatus;
 
 void vehicle_hal_force_safe_outputs(void);

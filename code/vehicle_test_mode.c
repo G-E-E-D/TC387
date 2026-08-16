@@ -45,10 +45,6 @@ typedef struct
     int16_t right_delta;
     bool rear_sample_seen;
     uint16_t steering_raw;
-    uint16_t previous_steering_raw;
-    int32_t steering_delta;
-    int64_t steering_count;
-    bool steering_sample_seen;
     VehicleMt6701AbStatus steering_status;
     VehicleHalImuRaw imu;
     bool imu_read_ok;
@@ -65,20 +61,6 @@ typedef struct
 } VehicleTestState;
 
 static VehicleTestState g_test;
-
-static int32_t steering_delta14(uint16_t current, uint16_t previous)
-{
-    int32_t delta = (int32_t)current - (int32_t)previous;
-    if(delta > 8192)
-    {
-        delta -= 16384;
-    }
-    else if(delta < -8192)
-    {
-        delta += 16384;
-    }
-    return delta;
-}
 
 static void test_line(uint8_t row, const char *format, ...)
 {
@@ -143,7 +125,6 @@ static void sample_inputs(uint64_t now_us)
     uint16_t left_raw;
     uint16_t right_raw;
     VehicleMt6701AbStatus steering_status;
-    uint16_t steering_raw;
     vehicle_hal_get_rear_encoder_raw(&left_raw, &right_raw);
     if(g_test.rear_sample_seen)
     {
@@ -166,20 +147,7 @@ static void sample_inputs(uint64_t now_us)
     if(vehicle_hal_get_mt6701_ab_status(&steering_status))
     {
         g_test.steering_status = steering_status;
-        steering_raw = steering_status.raw;
-        if(g_test.steering_sample_seen)
-        {
-            g_test.steering_delta = steering_delta14(
-                steering_raw, g_test.previous_steering_raw);
-            g_test.steering_count += (int64_t)g_test.steering_delta;
-        }
-        else
-        {
-            g_test.steering_delta = 0;
-            g_test.steering_sample_seen = true;
-        }
-        g_test.steering_raw = steering_raw;
-        g_test.previous_steering_raw = steering_raw;
+        g_test.steering_raw = steering_status.raw;
     }
 
     memset(&g_test.imu, 0, sizeof(g_test.imu));
@@ -309,21 +277,31 @@ static void render_encoders(void)
 static void render_steering(void)
 {
     test_line(0U, "TEST 3/6 MT6701 AB");
-    test_line(1U, "raw:%u d:%ld", (unsigned int)g_test.steering_raw,
-              (long)g_test.steering_delta);
-    test_line(2U, "count:%lld", (long long)g_test.steering_count);
-    test_line(3U, "A:P10.3 B:P10.2");
-    test_line(4U, "A:%u B:%u Z:%u D:%u",
+    test_line(1U, "raw:%u cnt:%lld", (unsigned int)g_test.steering_raw,
+              (long long)g_test.steering_status.continuous_count);
+    test_line(2U, "A:P10.3 B:P10.2");
+    test_line(3U, "A:%u B:%u Z:%u D:%u",
               (unsigned int)g_test.steering_status.a_level,
               (unsigned int)g_test.steering_status.b_level,
               (unsigned int)g_test.steering_status.z_level,
               (unsigned int)g_test.steering_status.dir_level);
-    test_line(5U, "IDX:%lu SEEN:%c",
+    test_line(4U, "IDX:%lu SEEN:%c",
               (unsigned long)g_test.steering_status.index_pulse_count,
               g_test.steering_status.index_seen ? 'Y' : 'N');
-    test_line(6U, "Turn left/right slowly");
-    test_line(7U, "DIR high=positive cfg");
-    test_line(8U, "Z rising resets phase");
+    if(g_test.steering_status.last_index_interval_valid)
+    {
+        test_line(5U, "dZ:%lld", (long long)
+                  g_test.steering_status.last_index_interval_count);
+    }
+    else
+    {
+        test_line(5U, "dZ:wait next Z");
+    }
+    test_line(6U, "BAD:%lu DM:%lu", (unsigned long)
+              g_test.steering_status.invalid_transition_count,
+              (unsigned long)g_test.steering_status.dir_mismatch_count);
+    test_line(7U, "Turn left/right slowly");
+    test_line(8U, "Z validates; no reset");
     test_line(9U, "K1 next  K2 stop");
 }
 
