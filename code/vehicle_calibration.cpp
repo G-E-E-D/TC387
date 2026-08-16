@@ -80,11 +80,11 @@ static bool axis_map_is_valid(const int8_t axis_map[3], const int8_t axis_sign[3
     for(index = 0U; index < 3U; ++index)
     {
         if((axis_map[index] < 0) || (axis_map[index] > 2) ||
-           seen[(uint8_t)axis_map[index]] || !sign_is_valid(axis_sign[index]))
+           seen[static_cast<uint8_t>(axis_map[index])] || !sign_is_valid(axis_sign[index]))
         {
             return false;
         }
-        seen[(uint8_t)axis_map[index]] = true;
+        seen[static_cast<uint8_t>(axis_map[index])] = true;
     }
     return true;
 }
@@ -94,7 +94,7 @@ static bool steering_table_is_valid(const SteeringCalibrationPoint *points,
 {
     size_t index;
 
-    if((points == NULL) || (count < 2U) ||
+    if((points == nullptr) || (count < 2U) ||
        (count > STEERING_CALIBRATION_MAX_POINTS))
     {
         return false;
@@ -148,7 +148,7 @@ static int steering_table_angle_direction(
     return direction;
 }
 
-SteeringCalibrationTables vehicle_calibration_get_steering_tables(void)
+SteeringCalibrationTables vehicle_calibration_get_steering_tables()
 {
     SteeringCalibrationTables tables;
 
@@ -165,7 +165,7 @@ bool vehicle_calibration_is_valid(const VehicleCalibration *calibration,
     int from_left_direction;
     int from_right_direction;
 
-    if((calibration == NULL) || (tables == NULL) || !CALIBRATION_VALID ||
+    if((calibration == nullptr) || (tables == nullptr) || !CALIBRATION_VALID ||
        !calibration->valid)
     {
         return false;

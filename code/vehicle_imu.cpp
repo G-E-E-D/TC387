@@ -6,7 +6,7 @@
 #include "vehicle_config.h"
 #include "vehicle_math.h"
 
-#define VEHICLE_IMU_CALIBRATION_TIME_US (3000000ULL)
+constexpr auto VEHICLE_IMU_CALIBRATION_TIME_US = 3000000ULL;
 
 static void vehicle_imu_increment_error(VehicleImu *imu)
 {
@@ -38,16 +38,16 @@ static bool vehicle_imu_mapping_is_valid(const VehicleImuConfig *config)
     {
         int32_t source_axis;
 
-        source_axis = (int32_t)config->axis_map[axis];
+        source_axis = static_cast<int32_t>(config->axis_map[axis]);
         if((source_axis < 0) ||
-           (source_axis >= (int32_t)VEHICLE_IMU_AXIS_COUNT) ||
-           used[(unsigned int)source_axis] ||
+           (source_axis >= static_cast<int32_t>(VEHICLE_IMU_AXIS_COUNT)) ||
+           used[static_cast<unsigned int>(source_axis)] ||
            ((config->axis_sign[axis] != INT8_C(1)) &&
             (config->axis_sign[axis] != -INT8_C(1))))
         {
             return false;
         }
-        used[(unsigned int)source_axis] = true;
+        used[static_cast<unsigned int>(source_axis)] = true;
     }
     return true;
 }
@@ -115,7 +115,7 @@ static void vehicle_imu_accumulate_calibration(VehicleImu *imu,
     {
         double value;
 
-        value = (double)sample->angular_rate_radps[axis];
+        value = static_cast<double>(sample->angular_rate_radps[axis]);
         imu->calibration_gyro_sum[axis] += value;
         imu->calibration_gyro_square_sum[axis] += value * value;
     }
@@ -135,7 +135,7 @@ static bool vehicle_imu_finish_calibration(VehicleImu *imu,
         return false;
     }
 
-    sample_count = (double)imu->calibration_sample_count;
+    sample_count = static_cast<double>(imu->calibration_sample_count);
     for(axis = 0U; axis < VEHICLE_IMU_AXIS_COUNT; ++axis)
     {
         double mean;
@@ -148,8 +148,8 @@ static bool vehicle_imu_finish_calibration(VehicleImu *imu,
         {
             variance = 0.0;
         }
-        imu->gyro_bias_radps[axis] = (float)mean;
-        imu->gyro_noise_stddev_radps[axis] = (float)sqrt(variance);
+        imu->gyro_bias_radps[axis] = static_cast<float>(mean);
+        imu->gyro_noise_stddev_radps[axis] = static_cast<float>(sqrt(variance));
         if(!vehicle_float_is_finite(imu->gyro_bias_radps[axis]) ||
            !vehicle_float_is_finite(imu->gyro_noise_stddev_radps[axis]))
         {
@@ -162,7 +162,7 @@ static bool vehicle_imu_finish_calibration(VehicleImu *imu,
 
 bool vehicle_imu_config_is_valid(const VehicleImuConfig *config)
 {
-    if((config == NULL) || !vehicle_imu_mapping_is_valid(config))
+    if((config == nullptr) || !vehicle_imu_mapping_is_valid(config))
     {
         return false;
     }
@@ -182,7 +182,7 @@ bool vehicle_imu_init(VehicleImu *imu, const VehicleImuConfig *config)
     unsigned int axis;
     bool valid;
 
-    if(imu == NULL)
+    if(imu == nullptr)
     {
         return false;
     }
@@ -191,7 +191,7 @@ bool vehicle_imu_init(VehicleImu *imu, const VehicleImuConfig *config)
     for(axis = 0U; axis < VEHICLE_IMU_AXIS_COUNT; ++axis)
     {
         imu->config.axis_map[axis] = valid ? config->axis_map[axis] :
-                                            (int8_t)axis;
+                                            static_cast<int8_t>(axis);
         imu->config.axis_sign[axis] = valid ? config->axis_sign[axis] :
                                              INT8_C(1);
         imu->gyro_bias_radps[axis] = 0.0f;
@@ -237,7 +237,7 @@ void vehicle_imu_restart_calibration(VehicleImu *imu)
 {
     unsigned int axis;
 
-    if(imu == NULL)
+    if(imu == nullptr)
     {
         return;
     }
@@ -262,7 +262,7 @@ bool vehicle_imu_update(VehicleImu *imu, uint64_t timestamp_us,
     bool time_valid;
     bool measurement_valid;
 
-    if((imu == NULL) || (sample == NULL))
+    if((imu == nullptr) || (sample == nullptr))
     {
         return false;
     }
@@ -272,8 +272,8 @@ bool vehicle_imu_update(VehicleImu *imu, uint64_t timestamp_us,
     sample->accel_gyro_valid = false;
     sample->magnetometer_valid = false;
 
-    if(!imu->configured || (raw_acceleration == NULL) ||
-       (raw_angular_rate == NULL))
+    if(!imu->configured || (raw_acceleration == nullptr) ||
+       (raw_angular_rate == nullptr))
     {
         vehicle_imu_increment_error(imu);
         return false;
@@ -284,26 +284,26 @@ bool vehicle_imu_update(VehicleImu *imu, uint64_t timestamp_us,
         int32_t source_axis;
         float sign;
 
-        source_axis = (int32_t)imu->config.axis_map[axis];
-        sign = (float)imu->config.axis_sign[axis];
+        source_axis = static_cast<int32_t>(imu->config.axis_map[axis]);
+        sign = static_cast<float>(imu->config.axis_sign[axis]);
         sample->raw_acc[axis] = raw_acceleration[axis];
         sample->raw_gyro[axis] = raw_angular_rate[axis];
-        sample->raw_mag[axis] = (raw_magnetic_field != NULL) ?
+        sample->raw_mag[axis] = (raw_magnetic_field != nullptr) ?
                                 raw_magnetic_field[axis] : 0;
         sample->acceleration_mps2[axis] =
-            (float)raw_acceleration[source_axis] * sign *
+            static_cast<float>(raw_acceleration[source_axis]) * sign *
             imu->config.acceleration_mps2_per_lsb;
         sample->angular_rate_radps[axis] =
-            (float)raw_angular_rate[source_axis] * sign *
+            static_cast<float>(raw_angular_rate[source_axis]) * sign *
             imu->config.angular_rate_radps_per_lsb;
         sample->magnetic_field_gauss[axis] =
-            (raw_magnetic_field != NULL) ?
-            ((float)raw_magnetic_field[source_axis] * sign *
+            (raw_magnetic_field != nullptr) ?
+            (static_cast<float>(raw_magnetic_field[source_axis]) * sign *
              imu->config.magnetic_field_gauss_per_lsb) : 0.0f;
     }
     sample->raw_temperature = raw_temperature;
     sample->temperature_c = imu->config.temperature_offset_c +
-                            (float)raw_temperature *
+                            static_cast<float>(raw_temperature) *
                             imu->config.temperature_c_per_lsb;
 
     time_valid = !imu->initialized ||
@@ -313,7 +313,7 @@ bool vehicle_imu_update(VehicleImu *imu, uint64_t timestamp_us,
     sample->accel_gyro_valid = measurement_valid;
     sample->magnetometer_valid = measurement_valid &&
         magnetometer_communication_ok &&
-        (raw_magnetic_field != NULL) &&
+        (raw_magnetic_field != nullptr) &&
         vehicle_float_array_is_finite(sample->magnetic_field_gauss,
                                       VEHICLE_IMU_AXIS_COUNT);
 
@@ -338,7 +338,7 @@ bool vehicle_imu_update(VehicleImu *imu, uint64_t timestamp_us,
                 imu->calibration_start_timestamp_us = timestamp_us;
             }
             vehicle_imu_accumulate_calibration(imu, sample);
-            (void)vehicle_imu_finish_calibration(imu, timestamp_us);
+            static_cast<void>(vehicle_imu_finish_calibration(imu, timestamp_us));
         }
     }
 
@@ -350,7 +350,7 @@ bool vehicle_imu_update(VehicleImu *imu, uint64_t timestamp_us,
 
 bool vehicle_imu_is_calibrated(const VehicleImu *imu)
 {
-    return (imu != NULL) && imu->configured && imu->calibrated;
+    return (imu != nullptr) && imu->configured && imu->calibrated;
 }
 
 bool vehicle_imu_get_corrected_angular_rate(
@@ -359,7 +359,7 @@ bool vehicle_imu_get_corrected_angular_rate(
 {
     unsigned int axis;
 
-    if((imu == NULL) || (corrected_radps == NULL) || !imu->calibrated ||
+    if((imu == nullptr) || (corrected_radps == nullptr) || !imu->calibrated ||
        !imu->last_sample.accel_gyro_valid)
     {
         return false;
@@ -375,7 +375,7 @@ bool vehicle_imu_get_corrected_angular_rate(
 bool vehicle_imu_is_fresh(const VehicleImu *imu, uint64_t now_us,
                           uint64_t timeout_us)
 {
-    if((imu == NULL) || !imu->initialized ||
+    if((imu == nullptr) || !imu->initialized ||
        (now_us < imu->last_valid_timestamp_us))
     {
         return false;

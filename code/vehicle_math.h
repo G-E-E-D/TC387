@@ -3,8 +3,8 @@
 
 #include <stdbool.h>
 
-#define VEHICLE_PI_F (3.14159265358979323846f)
-#define VEHICLE_TWO_PI_F (6.28318530717958647692f)
+constexpr auto VEHICLE_PI_F = 3.14159265358979323846f;
+constexpr auto VEHICLE_TWO_PI_F = 6.28318530717958647692f;
 
 float vehicle_clampf(float value, float minimum, float maximum);
 float vehicle_wrap_pi(float angle_rad);

@@ -6,10 +6,10 @@
 #include <stdint.h>
 
 #define MEASURE_REQUIRED
-#define CALIBRATION_VALID (false)
-#define STEERING_CALIBRATION_MAX_POINTS (24U)
+constexpr auto CALIBRATION_VALID = false;
+constexpr auto STEERING_CALIBRATION_MAX_POINTS = 24U;
 
-typedef struct
+struct VehicleCalibration
 {
     bool valid;
 
@@ -44,21 +44,21 @@ typedef struct
     float max_acceleration_mps2;
     float max_deceleration_mps2;
     float max_lateral_acceleration_mps2;
-} VehicleCalibration;
+};
 
-typedef struct
+struct SteeringCalibrationPoint
 {
     int64_t continuous_count;
     float equivalent_steering_angle_rad;
-} SteeringCalibrationPoint;
+};
 
-typedef struct
+struct SteeringCalibrationTables
 {
     const SteeringCalibrationPoint *from_left;
     size_t from_left_count;
     const SteeringCalibrationPoint *from_right;
     size_t from_right_count;
-} SteeringCalibrationTables;
+};
 
 extern const VehicleCalibration g_vehicle_calibration;
 extern const SteeringCalibrationPoint g_steering_calibration_from_left[];
@@ -68,6 +68,6 @@ extern const size_t g_steering_calibration_from_right_count;
 
 bool vehicle_calibration_is_valid(const VehicleCalibration *calibration,
                                   const SteeringCalibrationTables *tables);
-SteeringCalibrationTables vehicle_calibration_get_steering_tables(void);
+SteeringCalibrationTables vehicle_calibration_get_steering_tables();
 
 #endif

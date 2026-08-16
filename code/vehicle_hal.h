@@ -8,14 +8,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef enum
+enum VehicleHalTestMotor
 {
     VEHICLE_HAL_TEST_LEFT_MOTOR = 0,
     VEHICLE_HAL_TEST_RIGHT_MOTOR,
     VEHICLE_HAL_TEST_STEERING_MOTOR
-} VehicleHalTestMotor;
+};
 
-typedef struct
+struct VehicleHalStatus
 {
     bool motor_outputs_ready;
     bool rear_encoders_ready;
@@ -24,9 +24,9 @@ typedef struct
     bool display_ready;
     bool timer_ready;
     bool critical_ready;
-} VehicleHalStatus;
+};
 
-typedef struct
+struct VehicleHalImuRaw
 {
     int16_t acceleration[3];
     int16_t angular_rate[3];
@@ -34,9 +34,9 @@ typedef struct
     int16_t temperature;
     bool accel_gyro_communication_ok;
     bool magnetometer_communication_ok;
-} VehicleHalImuRaw;
+};
 
-typedef struct
+struct VehicleMt6701AbStatus
 {
     uint16_t raw;
     uint16_t timer_count;
@@ -52,19 +52,19 @@ typedef struct
     uint32_t dir_mismatch_count;
     bool index_seen;
     bool last_index_interval_valid;
-} VehicleMt6701AbStatus;
+};
 
-void vehicle_hal_force_safe_outputs(void);
-VehicleHalStatus vehicle_hal_init(void);
-uint64_t vehicle_hal_now_us(void);
-void vehicle_hal_timer_tick_isr(void);
-bool vehicle_hal_take_fast_tick(void);
-void vehicle_hal_service_control_watchdog(void);
-bool vehicle_hal_control_watchdog_expired(void);
-bool vehicle_hal_clear_control_watchdog_fault(void);
-void vehicle_hal_capture_encoder_counts(void);
+void vehicle_hal_force_safe_outputs();
+VehicleHalStatus vehicle_hal_init();
+uint64_t vehicle_hal_now_us();
+void vehicle_hal_timer_tick_isr();
+bool vehicle_hal_take_fast_tick();
+void vehicle_hal_service_control_watchdog();
+bool vehicle_hal_control_watchdog_expired();
+bool vehicle_hal_clear_control_watchdog_fault();
+void vehicle_hal_capture_encoder_counts();
 void vehicle_hal_get_rear_encoder_raw(uint16_t *left, uint16_t *right);
-void vehicle_hal_zero_rear_encoder_raw(void);
+void vehicle_hal_zero_rear_encoder_raw();
 bool vehicle_hal_read_mt6701_ssi(uint32_t *frame_24bits);
 bool vehicle_hal_get_mt6701_ab_raw(uint16_t *synthetic_raw);
 bool vehicle_hal_get_mt6701_ab_status(VehicleMt6701AbStatus *status);
@@ -82,6 +82,6 @@ void vehicle_hal_apply_calibration_test(VehicleHalTestMotor motor,
 bool vehicle_hal_uart_read_byte(uint8_t *byte);
 bool vehicle_hal_uart_try_write_byte(uint8_t byte, void *context);
 void vehicle_hal_display_line(uint8_t row, const char *text, void *context);
-uint8_t vehicle_hal_read_key_events(void);
+uint8_t vehicle_hal_read_key_events();
 
 #endif

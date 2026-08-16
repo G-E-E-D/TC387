@@ -7,7 +7,7 @@
 #include "vehicle_calibration.h"
 #include "vehicle_types.h"
 
-typedef struct
+struct VehicleWheelControllerConfig
 {
     float kp;
     float ki;
@@ -17,9 +17,9 @@ typedef struct
     float output_slew_per_s;
     float zero_band_mps;
     float direction_hold_s;
-} VehicleWheelControllerConfig;
+};
 
-typedef struct
+struct VehicleWheelSpeedController
 {
     VehicleWheelControllerConfig config;
     float start_duty_forward;
@@ -29,32 +29,32 @@ typedef struct
     float zero_dwell_s;
     int8_t active_direction;
     bool calibration_valid;
-} VehicleWheelSpeedController;
+};
 
-typedef struct
+struct VehicleDriveController
 {
     VehicleWheelSpeedController left;
     VehicleWheelSpeedController right;
     bool calibration_valid;
-} VehicleDriveController;
+};
 
-typedef struct
+struct VehicleDriveControlOutput
 {
     float left_target_speed_mps;
     float right_target_speed_mps;
     float left_signed_duty;
     float right_signed_duty;
     bool valid;
-} VehicleDriveControlOutput;
+};
 
-typedef enum
+enum VehicleSteeringApproach
 {
     VEHICLE_STEERING_APPROACH_UNKNOWN = 0,
     VEHICLE_STEERING_APPROACH_FROM_LEFT,
     VEHICLE_STEERING_APPROACH_FROM_RIGHT
-} VehicleSteeringApproach;
+};
 
-typedef struct
+struct VehicleSteeringControllerConfig
 {
     float kp;
     float ki;
@@ -67,9 +67,9 @@ typedef struct
     int64_t stall_count_delta;
     float stall_timeout_s;
     int64_t approach_switch_hysteresis_count;
-} VehicleSteeringControllerConfig;
+};
 
-typedef struct
+struct VehicleSteeringController
 {
     VehicleSteeringControllerConfig config;
     const VehicleCalibration *calibration;
@@ -84,9 +84,9 @@ typedef struct
     bool calibration_valid;
     bool previous_sample_valid;
     bool stalled;
-} VehicleSteeringController;
+};
 
-typedef struct
+struct VehicleSteeringControlOutput
 {
     float measured_angle_rad;
     int64_t target_count;
@@ -96,15 +96,15 @@ typedef struct
     bool at_soft_limit;
     bool stalled;
     bool valid;
-} VehicleSteeringControlOutput;
+};
 
-typedef struct
+struct VehicleControl
 {
     VehicleDriveController drive;
     VehicleSteeringController steering;
-} VehicleControl;
+};
 
-typedef struct
+struct VehicleControlInput
 {
     float target_center_speed_mps;
     float target_steering_rad;
@@ -112,15 +112,15 @@ typedef struct
     float right_speed_mps;
     int64_t steering_continuous_count;
     float dt_s;
-} VehicleControlInput;
+};
 
-typedef struct
+struct VehicleControlOutput
 {
     VehicleDriveControlOutput drive;
     VehicleSteeringControlOutput steering;
     VehicleActuatorCommand actuators;
     bool valid;
-} VehicleControlOutput;
+};
 
 void vehicle_wheel_controller_default_config(VehicleWheelControllerConfig *config);
 void vehicle_wheel_speed_controller_init(VehicleWheelSpeedController *controller,

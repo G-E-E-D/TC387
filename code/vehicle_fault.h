@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef enum
+enum VehicleFaultFlag
 {
     VEHICLE_FAULT_NONE                  = 0U,
     VEHICLE_FAULT_DRIVER_INIT           = 1UL << 0,
@@ -27,16 +27,16 @@ typedef enum
     VEHICLE_FAULT_TRACKING_ERROR        = 1UL << 17,
     VEHICLE_FAULT_NUMERIC               = 1UL << 18,
     VEHICLE_FAULT_LOG_OVERFLOW          = 1UL << 19
-} VehicleFaultFlag;
+};
 
-typedef struct
+struct VehicleFaultManager
 {
     uint32_t active_flags;
     uint32_t latched_flags;
     uint64_t first_fault_timestamp_us;
     uint64_t last_fault_timestamp_us;
     bool immediate_stop;
-} VehicleFaultManager;
+};
 
 void vehicle_fault_init(VehicleFaultManager *manager);
 void vehicle_fault_latch(VehicleFaultManager *manager, uint32_t flags,

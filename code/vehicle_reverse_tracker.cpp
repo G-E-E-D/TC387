@@ -11,7 +11,7 @@
 static bool vehicle_reverse_tracker_input_is_finite(
     const VehicleReverseTrackerInput *input)
 {
-    return (input != NULL) && vehicle_float_is_finite(input->x_m) &&
+    return (input != nullptr) && vehicle_float_is_finite(input->x_m) &&
            vehicle_float_is_finite(input->y_m) &&
            vehicle_float_is_finite(input->body_yaw_rad) &&
            vehicle_float_is_finite(input->speed_mps) &&
@@ -26,8 +26,8 @@ static void vehicle_reverse_tracker_clear_output(
     output->cross_track_error_m = 0.0f;
     output->heading_error_rad = 0.0f;
     output->lookahead_m = 0.0f;
-    output->nearest_index = (tracker != NULL) ? tracker->nearest_index : 0U;
-    output->target_index = (tracker != NULL) ? tracker->target_index : 0U;
+    output->nearest_index = (tracker != nullptr) ? tracker->nearest_index : 0U;
+    output->target_index = (tracker != nullptr) ? tracker->target_index : 0U;
     output->finished = false;
     output->valid = false;
 }
@@ -39,7 +39,7 @@ static VehicleReverseTrackerStatus vehicle_reverse_tracker_safe_output(
     VehicleReverseTrackerStatus status)
 {
     vehicle_reverse_tracker_clear_output(tracker, output);
-    if(tracker != NULL && input != NULL &&
+    if(tracker != nullptr && input != nullptr &&
        vehicle_float_is_finite(input->dt_s) && (input->dt_s > 0.0f))
     {
         tracker->previous_target_speed_mps = vehicle_rate_limit(
@@ -51,7 +51,7 @@ static VehicleReverseTrackerStatus vehicle_reverse_tracker_safe_output(
             -tracker->config.maximum_reverse_speed_mps, 0.0f);
         output->target_speed_mps = tracker->previous_target_speed_mps;
     }
-    if(tracker != NULL)
+    if(tracker != nullptr)
     {
         tracker->status = status;
         output->nearest_index = tracker->nearest_index;
@@ -63,7 +63,7 @@ static VehicleReverseTrackerStatus vehicle_reverse_tracker_safe_output(
 void vehicle_reverse_tracker_default_config(
     VehicleReverseTrackerConfig *config)
 {
-    if(config == NULL)
+    if(config == nullptr)
     {
         return;
     }
@@ -97,7 +97,7 @@ void vehicle_reverse_tracker_default_config(
 bool vehicle_reverse_tracker_config_is_valid(
     const VehicleReverseTrackerConfig *config)
 {
-    if(config == NULL)
+    if(config == nullptr)
     {
         return false;
     }
@@ -148,11 +148,11 @@ bool vehicle_reverse_tracker_config_is_valid(
 
 void vehicle_reverse_tracker_reset(VehicleReverseTracker *tracker)
 {
-    if(tracker == NULL)
+    if(tracker == nullptr)
     {
         return;
     }
-    (void)memset(tracker, 0, sizeof(*tracker));
+    *tracker = {};
     tracker->status = VEHICLE_REVERSE_TRACKER_UNINITIALIZED;
 }
 
@@ -165,13 +165,13 @@ VehicleReverseTrackerStatus vehicle_reverse_tracker_init(
     VehicleReverseTrackerConfig selected_config;
     VehiclePathResult path_result;
 
-    if(tracker == NULL)
+    if(tracker == nullptr)
     {
         return VEHICLE_REVERSE_TRACKER_INVALID_ARGUMENT;
     }
     vehicle_reverse_tracker_reset(tracker);
 
-    if(config == NULL)
+    if(config == nullptr)
     {
         vehicle_reverse_tracker_default_config(&selected_config);
     }
@@ -182,12 +182,12 @@ VehicleReverseTrackerStatus vehicle_reverse_tracker_init(
     tracker->config = selected_config;
 
     if(!vehicle_reverse_tracker_config_is_valid(&selected_config) ||
-       path == NULL)
+       path == nullptr)
     {
         tracker->status = VEHICLE_REVERSE_TRACKER_INVALID_ARGUMENT;
         return tracker->status;
     }
-    path_result = vehicle_path_validate_points(path, path_count, NULL, NULL);
+    path_result = vehicle_path_validate_points(path, path_count, nullptr, nullptr);
     if(path_result != VEHICLE_PATH_RESULT_OK)
     {
         tracker->status = VEHICLE_REVERSE_TRACKER_PATH_INVALID;
@@ -242,16 +242,16 @@ VehicleReverseTrackerStatus vehicle_reverse_tracker_update(
     float desired_speed_mps;
     bool finish_progress_reached;
 
-    if(output == NULL)
+    if(output == nullptr)
     {
         return VEHICLE_REVERSE_TRACKER_INVALID_ARGUMENT;
     }
     vehicle_reverse_tracker_clear_output(tracker, output);
-    if(tracker == NULL || input == NULL)
+    if(tracker == nullptr || input == nullptr)
     {
         return VEHICLE_REVERSE_TRACKER_INVALID_ARGUMENT;
     }
-    if(!tracker->initialized || tracker->path == NULL ||
+    if(!tracker->initialized || tracker->path == nullptr ||
        tracker->path_count == 0U)
     {
         return vehicle_reverse_tracker_safe_output(
@@ -527,7 +527,7 @@ VehicleReverseTrackerStatus vehicle_reverse_tracker_update(
 VehicleReverseTrackerStatus vehicle_reverse_tracker_get_status(
     const VehicleReverseTracker *tracker)
 {
-    return (tracker != NULL) ? tracker->status
+    return (tracker != nullptr) ? tracker->status
                              : VEHICLE_REVERSE_TRACKER_INVALID_ARGUMENT;
 }
 

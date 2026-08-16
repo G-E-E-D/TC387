@@ -28,14 +28,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#define VEHICLE_UART_RX_BUDGET          (32U)
-#define VEHICLE_UART_TX_BUDGET          (64U)
-#define VEHICLE_FAST_TICK_CATCHUP_LIMIT (8U)
-#define VEHICLE_STOPPED_SPEED_MPS       (0.08f)
-#define VEHICLE_STOPPED_DUTY            (0.03f)
-#define VEHICLE_KEY_DEBOUNCE_US         (50000ULL)
+constexpr auto VEHICLE_UART_RX_BUDGET = 32U;
+constexpr auto VEHICLE_UART_TX_BUDGET = 64U;
+constexpr auto VEHICLE_FAST_TICK_CATCHUP_LIMIT = 8U;
+constexpr auto VEHICLE_STOPPED_SPEED_MPS = 0.08f;
+constexpr auto VEHICLE_STOPPED_DUTY = 0.03f;
+constexpr auto VEHICLE_KEY_DEBOUNCE_US = 50000ULL;
 
-typedef struct
+struct VehicleApp
 {
     VehicleHalStatus hal_status;
     SteeringCalibrationTables steering_tables;
@@ -97,13 +97,13 @@ typedef struct
     bool request_fault_reset;
     bool reverse_finished;
     bool initialized;
-} VehicleApp;
+};
 
 static VehicleApp g_app;
 
 static void log_text(const char *text)
 {
-    (void)vehicle_log_enqueue_text(&g_app.log, text);
+    static_cast<void>(vehicle_log_enqueue_text(&g_app.log, text));
 }
 
 static void log_format(const char *format, ...)
@@ -111,21 +111,21 @@ static void log_format(const char *format, ...)
     char line[VEHICLE_COMMAND_BUFFER_SIZE];
     va_list arguments;
     va_start(arguments, format);
-    (void)vsnprintf(line, sizeof(line), format, arguments);
+    static_cast<void>(vsnprintf(line, sizeof(line), format, arguments));
     va_end(arguments);
-    (void)vehicle_log_enqueue_text(&g_app.log, line);
+    static_cast<void>(vehicle_log_enqueue_text(&g_app.log, line));
 }
 
-static void telemetry_zero_actuators(void)
+static void telemetry_zero_actuators()
 {
-    memset(&g_app.control_output, 0, sizeof(g_app.control_output));
+    g_app.control_output = {};
     g_app.telemetry.actuators.left_motor_duty = 0.0f;
     g_app.telemetry.actuators.right_motor_duty = 0.0f;
     g_app.telemetry.actuators.steering_motor_duty = 0.0f;
     g_app.telemetry.actuators.immediate_stop = false;
 }
 
-static void clear_requests(void)
+static void clear_requests()
 {
     g_app.request_calibration_mode = false;
     g_app.request_idle = false;
@@ -135,7 +135,7 @@ static void clear_requests(void)
     g_app.request_fault_reset = false;
 }
 
-static bool vehicle_app_is_stopped(void)
+static bool vehicle_app_is_stopped()
 {
     return g_app.telemetry.left_wheel.valid &&
            g_app.telemetry.right_wheel.valid &&
@@ -150,7 +150,7 @@ static bool vehicle_app_is_stopped(void)
             VEHICLE_STOPPED_DUTY);
 }
 
-static bool vehicle_app_commissioning_ready(void)
+static bool vehicle_app_commissioning_ready()
 {
     return g_app.hal_status.motor_outputs_ready &&
            g_app.hal_status.rear_encoders_ready &&
@@ -221,7 +221,7 @@ static void update_controlled_stop(uint64_t now_us)
     }
 }
 
-static void end_stage1_recording(void)
+static void end_stage1_recording()
 {
     VehiclePathResult result;
     if(g_app.stage1_recording_ended)
@@ -256,7 +256,7 @@ static void handle_state_entry(uint64_t now_us)
         g_app.target_steering_rad = 0.0f;
     }
     log_format("# STATE,%s,%llu\r\n", vehicle_state_name(entered),
-               (unsigned long long)now_us);
+               static_cast<unsigned long long>(now_us));
 
     switch(entered)
     {
@@ -327,7 +327,7 @@ static void handle_state_entry(uint64_t now_us)
             g_app.target_speed_mps = 0.0f;
             g_app.target_steering_rad = 0.0f;
             tracker_status = vehicle_reverse_tracker_init(
-                &g_app.reverse_tracker, NULL, vehicle_path_get_points(),
+                &g_app.reverse_tracker, nullptr, vehicle_path_get_points(),
                 vehicle_path_get_count());
             g_app.reverse_finished = false;
             g_app.last_tracker_timestamp_us = now_us;
@@ -349,8 +349,8 @@ static void handle_state_entry(uint64_t now_us)
             g_app.calibration_test_active = false;
             g_app.calibration_test_output_applied = false;
             log_format("# FAULT,active=%08lX,latched=%08lX\r\n",
-                       (unsigned long)g_app.faults.active_flags,
-                       (unsigned long)g_app.faults.latched_flags);
+                       static_cast<unsigned long>(g_app.faults.active_flags),
+                       static_cast<unsigned long>(g_app.faults.latched_flags));
             break;
         case VEHICLE_STATE_CALIBRATION_MODE:
             vehicle_hal_force_safe_outputs();
@@ -373,7 +373,7 @@ static void update_diagnostic_encoder(WheelEncoderSample *sample,
 {
     int32_t delta = vehicle_encoder_delta16(raw, *previous_raw);
     *previous_raw = raw;
-    *continuous_count += (int64_t)delta;
+    *continuous_count += static_cast<int64_t>(delta);
     sample->timestamp_us = now_us;
     sample->count = *continuous_count;
     sample->delta_count = delta;
@@ -381,7 +381,7 @@ static void update_diagnostic_encoder(WheelEncoderSample *sample,
     sample->valid = false;
 }
 
-static void update_steering_angle_from_tables(void)
+static void update_steering_angle_from_tables()
 {
     float from_left;
     float from_right;
@@ -425,7 +425,7 @@ static void update_stage1_recording(uint64_t now_us)
     }
     if((now_us < g_app.stage1_start_timestamp_us) ||
        ((now_us - g_app.stage1_start_timestamp_us) >=
-        (uint64_t)(RECORD_MAX_TIME_S * 1000000.0f)))
+        static_cast<uint64_t>(RECORD_MAX_TIME_S * 1000000.0f)))
     {
         g_app.stage1_stop_pending = true;
         end_stage1_recording();
@@ -457,7 +457,7 @@ static void update_stage1_recording(uint64_t now_us)
     else if(!g_app.stage1_stop_pending)
     {
         path_info = vehicle_path_get_info();
-        elapsed_s = (float)(now_us - g_app.stage1_start_timestamp_us) *
+        elapsed_s = static_cast<float>(now_us - g_app.stage1_start_timestamp_us) *
                     1.0e-6f;
         speed_mps = fabsf(g_app.telemetry.pose.vehicle_speed_mps);
         deceleration_mps2 = g_vehicle_calibration.max_deceleration_mps2;
@@ -487,16 +487,16 @@ static void estimator_task(uint64_t now_us)
     VehicleHalImuRaw imu_raw;
     bool steering_ok;
 
-    (void)mt_ab_raw;
-    (void)mt_frame;
+    static_cast<void>(mt_ab_raw);
+    static_cast<void>(mt_frame);
 
     vehicle_hal_get_rear_encoder_raw(&left_raw, &right_raw);
     if(g_app.calibration_valid)
     {
-        (void)vehicle_encoder_update(&g_app.left_encoder, left_raw, now_us,
-                                     &g_app.telemetry.left_wheel);
-        (void)vehicle_encoder_update(&g_app.right_encoder, right_raw, now_us,
-                                     &g_app.telemetry.right_wheel);
+        static_cast<void>(vehicle_encoder_update(&g_app.left_encoder, left_raw, now_us,
+                                     &g_app.telemetry.left_wheel));
+        static_cast<void>(vehicle_encoder_update(&g_app.right_encoder, right_raw, now_us,
+                                     &g_app.telemetry.right_wheel));
     }
     else
     {
@@ -525,16 +525,16 @@ static void estimator_task(uint64_t now_us)
         &g_app.mt6701, mt_ab_raw, 0U, now_us, false,
         &g_app.telemetry.steering);
 #endif
-    (void)steering_ok;
+    static_cast<void>(steering_ok);
     update_steering_angle_from_tables();
 
-    memset(&imu_raw, 0, sizeof(imu_raw));
+    imu_raw = {};
     g_app.imu_communication_ok = vehicle_hal_read_imu(&imu_raw);
-    (void)vehicle_imu_update(
+    static_cast<void>(vehicle_imu_update(
         &g_app.imu, now_us, imu_raw.acceleration, imu_raw.angular_rate,
         imu_raw.magnetic_field, imu_raw.temperature,
         imu_raw.accel_gyro_communication_ok,
-        imu_raw.magnetometer_communication_ok, &g_app.telemetry.imu);
+        imu_raw.magnetometer_communication_ok, &g_app.telemetry.imu));
 
     if(vehicle_imu_is_calibrated(&g_app.imu) &&
        !g_app.localization_ready && g_app.calibration_valid)
@@ -552,11 +552,11 @@ static void estimator_task(uint64_t now_us)
     }
     if(g_app.localization_ready && vehicle_imu_is_calibrated(&g_app.imu))
     {
-        (void)vehicle_localization_update(
+        static_cast<void>(vehicle_localization_update(
             &g_app.localization, now_us,
             &g_app.telemetry.left_wheel, &g_app.telemetry.right_wheel,
             &g_app.telemetry.imu, g_app.telemetry.steering.angle_rad,
-            g_app.telemetry.steering.valid, &g_app.telemetry.pose);
+            g_app.telemetry.steering.valid, &g_app.telemetry.pose));
     }
     else
     {
@@ -624,8 +624,8 @@ static void tracker_task(uint64_t now_us)
     }
 
     dt_s = (g_app.last_tracker_timestamp_us == 0U)
-        ? ((float)VEHICLE_TRACKER_PERIOD_US * 1.0e-6f)
-        : (float)(now_us - g_app.last_tracker_timestamp_us) * 1.0e-6f;
+        ? (static_cast<float>(VEHICLE_TRACKER_PERIOD_US) * 1.0e-6f)
+        : static_cast<float>(now_us - g_app.last_tracker_timestamp_us) * 1.0e-6f;
     g_app.last_tracker_timestamp_us = now_us;
     input.x_m = g_app.telemetry.pose.x_m;
     input.y_m = g_app.telemetry.pose.y_m;
@@ -672,8 +672,8 @@ static void control_task(uint64_t now_us)
     float dt_s;
     bool automatic = vehicle_state_is_automatic(g_app.state_machine.state);
     dt_s = (g_app.last_control_timestamp_us == 0U)
-        ? ((float)VEHICLE_CONTROL_PERIOD_US * 1.0e-6f)
-        : (float)(now_us - g_app.last_control_timestamp_us) * 1.0e-6f;
+        ? (static_cast<float>(VEHICLE_CONTROL_PERIOD_US) * 1.0e-6f)
+        : static_cast<float>(now_us - g_app.last_control_timestamp_us) * 1.0e-6f;
     g_app.last_control_timestamp_us = now_us;
     dt_s = vehicle_clampf(dt_s, LOCALIZATION_MIN_DT_S,
                           LOCALIZATION_MAX_DT_S);
@@ -744,7 +744,7 @@ static void safety_task(uint64_t now_us)
         (vehicle_reverse_tracker_get_status(&g_app.reverse_tracker) ==
          VEHICLE_REVERSE_TRACKER_FINISHED);
 
-    memset(&inputs, 0, sizeof(inputs));
+    inputs = {};
     inputs.timestamp_us = now_us;
     inputs.state = g_app.state_machine.state;
     inputs.left_wheel = g_app.telemetry.left_wheel;
@@ -789,44 +789,44 @@ static void safety_task(uint64_t now_us)
     }
 }
 
-static void print_configuration(void)
+static void print_configuration()
 {
     size_t index;
     log_format("# CONFIG,CALIBRATION_VALID=%u,runtime_valid=%u\r\n",
-               (unsigned int)CALIBRATION_VALID,
+               static_cast<unsigned int>(CALIBRATION_VALID),
                g_app.calibration_valid ? 1U : 0U);
     log_format("# GEOMETRY,wheelbase=%.3f,front_track=%.3f,rear_track=%.3f\r\n",
-               (double)VEHICLE_WHEELBASE_M, (double)VEHICLE_FRONT_TRACK_M,
-               (double)VEHICLE_REAR_TRACK_M);
+               static_cast<double>(VEHICLE_WHEELBASE_M), static_cast<double>(VEHICLE_FRONT_TRACK_M),
+               static_cast<double>(VEHICLE_REAR_TRACK_M));
     log_format("# LIMITS,record_m=%.1f,record_s=%.1f,replay_mps=%.1f\r\n",
-               (double)RECORD_MAX_DISTANCE_M, (double)RECORD_MAX_TIME_S,
-               (double)REPLAY_MAX_SPEED_MPS);
+               static_cast<double>(RECORD_MAX_DISTANCE_M), static_cast<double>(RECORD_MAX_TIME_S),
+               static_cast<double>(REPLAY_MAX_SPEED_MPS));
     log_format("# ENCODER,L sign=%d,m_per_count=%.9g,cpr=%ld\r\n",
                g_vehicle_calibration.left_encoder_forward_sign,
-               (double)g_vehicle_calibration.left_meter_per_count,
-               (long)g_vehicle_calibration.left_counts_per_wheel_rev);
+               static_cast<double>(g_vehicle_calibration.left_meter_per_count),
+               static_cast<long>(g_vehicle_calibration.left_counts_per_wheel_rev));
     log_format("# ENCODER,R sign=%d,m_per_count=%.9g,cpr=%ld\r\n",
                g_vehicle_calibration.right_encoder_forward_sign,
-               (double)g_vehicle_calibration.right_meter_per_count,
-               (long)g_vehicle_calibration.right_counts_per_wheel_rev);
+               static_cast<double>(g_vehicle_calibration.right_meter_per_count),
+               static_cast<long>(g_vehicle_calibration.right_counts_per_wheel_rev));
     log_format("# MOTOR,L dir=%d,start_f=%.4f,start_r=%.4f\r\n",
                g_vehicle_calibration.left_motor_forward_direction,
-               (double)g_vehicle_calibration.left_motor_start_duty_forward,
-               (double)g_vehicle_calibration.left_motor_start_duty_reverse);
+               static_cast<double>(g_vehicle_calibration.left_motor_start_duty_forward),
+               static_cast<double>(g_vehicle_calibration.left_motor_start_duty_reverse));
     log_format("# MOTOR,R dir=%d,start_f=%.4f,start_r=%.4f\r\n",
                g_vehicle_calibration.right_motor_forward_direction,
-               (double)g_vehicle_calibration.right_motor_start_duty_forward,
-               (double)g_vehicle_calibration.right_motor_start_duty_reverse);
+               static_cast<double>(g_vehicle_calibration.right_motor_start_duty_forward),
+               static_cast<double>(g_vehicle_calibration.right_motor_start_duty_reverse));
     log_format("# STEER,left_dir=%d,start_l=%.4f,start_r=%.4f,limits=%lld:%lld\r\n",
                g_vehicle_calibration.steering_left_direction,
-               (double)g_vehicle_calibration.steering_start_duty_left,
-               (double)g_vehicle_calibration.steering_start_duty_right,
-               (long long)g_vehicle_calibration.steering_left_soft_limit_count,
-               (long long)g_vehicle_calibration.steering_right_soft_limit_count);
+               static_cast<double>(g_vehicle_calibration.steering_start_duty_left),
+               static_cast<double>(g_vehicle_calibration.steering_start_duty_right),
+               static_cast<long long>(g_vehicle_calibration.steering_left_soft_limit_count),
+               static_cast<long long>(g_vehicle_calibration.steering_right_soft_limit_count));
     log_format("# IMU,pos=%.4f:%.4f:%.4f,map=%d:%d:%d,sign=%d:%d:%d\r\n",
-               (double)g_vehicle_calibration.imu_position_x_m,
-               (double)g_vehicle_calibration.imu_position_y_m,
-               (double)g_vehicle_calibration.imu_position_z_m,
+               static_cast<double>(g_vehicle_calibration.imu_position_x_m),
+               static_cast<double>(g_vehicle_calibration.imu_position_y_m),
+               static_cast<double>(g_vehicle_calibration.imu_position_z_m),
                g_vehicle_calibration.imu_axis_map[0],
                g_vehicle_calibration.imu_axis_map[1],
                g_vehicle_calibration.imu_axis_map[2],
@@ -834,20 +834,20 @@ static void print_configuration(void)
                g_vehicle_calibration.imu_axis_sign[1],
                g_vehicle_calibration.imu_axis_sign[2]);
     log_format("# DYNAMICS,accel=%.3f,decel=%.3f,lateral=%.3f\r\n",
-               (double)g_vehicle_calibration.max_acceleration_mps2,
-               (double)g_vehicle_calibration.max_deceleration_mps2,
-               (double)g_vehicle_calibration.max_lateral_acceleration_mps2);
+               static_cast<double>(g_vehicle_calibration.max_acceleration_mps2),
+               static_cast<double>(g_vehicle_calibration.max_deceleration_mps2),
+               static_cast<double>(g_vehicle_calibration.max_lateral_acceleration_mps2));
     for(index = 0U; index < g_app.steering_tables.from_left_count; ++index)
     {
-        log_format("# STEER_TABLE,L,%u,%lld,%.7f\r\n", (unsigned int)index,
-                   (long long)g_app.steering_tables.from_left[index].continuous_count,
-                   (double)g_app.steering_tables.from_left[index].equivalent_steering_angle_rad);
+        log_format("# STEER_TABLE,L,%u,%lld,%.7f\r\n", static_cast<unsigned int>(index),
+                   static_cast<long long>(g_app.steering_tables.from_left[index].continuous_count),
+                   static_cast<double>(g_app.steering_tables.from_left[index].equivalent_steering_angle_rad));
     }
     for(index = 0U; index < g_app.steering_tables.from_right_count; ++index)
     {
-        log_format("# STEER_TABLE,R,%u,%lld,%.7f\r\n", (unsigned int)index,
-                   (long long)g_app.steering_tables.from_right[index].continuous_count,
-                   (double)g_app.steering_tables.from_right[index].equivalent_steering_angle_rad);
+        log_format("# STEER_TABLE,R,%u,%lld,%.7f\r\n", static_cast<unsigned int>(index),
+                   static_cast<long long>(g_app.steering_tables.from_right[index].continuous_count),
+                   static_cast<double>(g_app.steering_tables.from_right[index].equivalent_steering_angle_rad));
     }
     if(!g_app.calibration_valid)
     {
@@ -859,7 +859,7 @@ static void print_configuration(void)
 static void handle_diagnostic_request(const VehicleDiagnosticRequest *request,
                                       uint64_t now_us)
 {
-    if(request == NULL)
+    if(request == nullptr)
     {
         return;
     }
@@ -905,11 +905,11 @@ static void handle_diagnostic_request(const VehicleDiagnosticRequest *request,
             break;
         case VEHICLE_DIAG_STEERING_LIMIT_LEFT:
             log_format("# STEER_LIMIT_CANDIDATE,left,%lld\r\n",
-                       (long long)g_app.telemetry.steering.relative_count);
+                       static_cast<long long>(g_app.telemetry.steering.relative_count));
             break;
         case VEHICLE_DIAG_STEERING_LIMIT_RIGHT:
             log_format("# STEER_LIMIT_CANDIDATE,right,%lld\r\n",
-                       (long long)g_app.telemetry.steering.relative_count);
+                       static_cast<long long>(g_app.telemetry.steering.relative_count));
             break;
         case VEHICLE_DIAG_TEST_LEFT_MOTOR:
         case VEHICLE_DIAG_TEST_RIGHT_MOTOR:
@@ -926,7 +926,7 @@ static void handle_diagnostic_request(const VehicleDiagnosticRequest *request,
                            : VEHICLE_HAL_TEST_STEERING_MOTOR);
                 g_app.calibration_test_duty = request->signed_duty;
                 g_app.calibration_test_deadline_us = now_us +
-                    (uint64_t)(CALIBRATION_TEST_MAX_TIME_S * 1000000.0f);
+                    static_cast<uint64_t>(CALIBRATION_TEST_MAX_TIME_S * 1000000.0f);
                 g_app.calibration_test_active = true;
                 g_app.calibration_test_output_applied = false;
             }
@@ -1040,7 +1040,7 @@ static void handle_diagnostic_request(const VehicleDiagnosticRequest *request,
             else
             {
                 log_format("# DENIED,fault still active=%08lX\r\n",
-                           (unsigned long)g_app.faults.active_flags);
+                           static_cast<unsigned long>(g_app.faults.active_flags));
             }
             break;
         case VEHICLE_DIAG_CALIBRATION_MODE:
@@ -1109,7 +1109,7 @@ static void update_state_machine(uint64_t now_us)
     bool stage1_stopped = g_app.stage1_stop_pending &&
         g_app.stage1_recording_ended &&
         vehicle_app_is_stopped();
-    memset(&events, 0, sizeof(events));
+    events = {};
     events.boot_complete = true;
     events.critical_drivers_ready = vehicle_app_commissioning_ready();
     events.sensors_calibrated = vehicle_imu_is_calibrated(&g_app.imu) &&
@@ -1127,7 +1127,7 @@ static void update_state_machine(uint64_t now_us)
     events.path_valid = g_app.path_valid && !path_info.overflowed;
     events.reverse_finished = g_app.reverse_finished;
     events.fault_active = vehicle_fault_has_active(&g_app.faults);
-    (void)vehicle_state_machine_update(&g_app.state_machine, &events, now_us);
+    static_cast<void>(vehicle_state_machine_update(&g_app.state_machine, &events, now_us));
     clear_requests();
     handle_state_entry(now_us);
 }
@@ -1144,14 +1144,14 @@ static void update_telemetry(uint64_t now_us)
     g_app.telemetry.latched_fault_flags = g_app.faults.latched_flags;
 }
 
-bool vehicle_app_init(void)
+bool vehicle_app_init()
 {
 #if VEHICLE_TEMP_TEST_MODE
     return vehicle_test_mode_init();
 #else
     VehicleImuConfig imu_config;
     uint64_t now_us;
-    memset(&g_app, 0, sizeof(g_app));
+    g_app = {};
     vehicle_log_init(&g_app.log);
     vehicle_diagnostics_init(&g_app.diagnostics);
     vehicle_display_init(&g_app.display);
@@ -1171,12 +1171,12 @@ bool vehicle_app_init(void)
     g_app.steering_tables = vehicle_calibration_get_steering_tables();
     g_app.calibration_valid = vehicle_calibration_is_valid(
         &g_vehicle_calibration, &g_app.steering_tables);
-    (void)vehicle_encoder_init(&g_app.left_encoder,
+    static_cast<void>(vehicle_encoder_init(&g_app.left_encoder,
         g_vehicle_calibration.left_encoder_forward_sign,
-        g_vehicle_calibration.left_meter_per_count);
-    (void)vehicle_encoder_init(&g_app.right_encoder,
+        g_vehicle_calibration.left_meter_per_count));
+    static_cast<void>(vehicle_encoder_init(&g_app.right_encoder,
         g_vehicle_calibration.right_encoder_forward_sign,
-        g_vehicle_calibration.right_meter_per_count);
+        g_vehicle_calibration.right_meter_per_count));
 
     g_app.hal_status = vehicle_hal_init();
     imu_config.axis_map[0] = g_vehicle_calibration.imu_axis_map[0];
@@ -1197,7 +1197,7 @@ bool vehicle_app_init(void)
     }
     vehicle_control_init(&g_app.control, &g_vehicle_calibration,
                          &g_app.steering_tables);
-    vehicle_safety_init(&g_app.safety, NULL, &g_vehicle_calibration,
+    vehicle_safety_init(&g_app.safety, nullptr, &g_vehicle_calibration,
                         &g_app.steering_tables);
 
     now_us = vehicle_hal_now_us();
@@ -1231,7 +1231,7 @@ bool vehicle_app_init(void)
 #endif
 }
 
-void vehicle_app_process(void)
+void vehicle_app_process()
 {
 #if VEHICLE_TEMP_TEST_MODE
     vehicle_test_mode_process();
@@ -1346,7 +1346,7 @@ void vehicle_app_process(void)
     {
         if(vehicle_log_is_csv_enabled(&g_app.log))
         {
-            (void)vehicle_log_enqueue_csv(&g_app.log, &g_app.telemetry);
+            static_cast<void>(vehicle_log_enqueue_csv(&g_app.log, &g_app.telemetry));
         }
         g_app.next_log_timestamp_us = now_us + VEHICLE_LOG_PERIOD_US;
     }
@@ -1355,15 +1355,15 @@ void vehicle_app_process(void)
         g_app.faults.latched_flags |= VEHICLE_FAULT_LOG_OVERFLOW;
         g_app.telemetry.latched_fault_flags = g_app.faults.latched_flags;
     }
-    (void)vehicle_log_flush(&g_app.log, VEHICLE_UART_TX_BUDGET,
-                            vehicle_hal_uart_try_write_byte, NULL);
+    static_cast<void>(vehicle_log_flush(&g_app.log, VEHICLE_UART_TX_BUDGET,
+                            vehicle_hal_uart_try_write_byte, nullptr));
 
     if(now_us >= g_app.next_display_timestamp_us)
     {
         vehicle_display_render(&g_app.display, &g_app.telemetry,
                                g_app.calibration_valid,
                                vehicle_log_dropped_lines(&g_app.log),
-                               vehicle_hal_display_line, NULL);
+                               vehicle_hal_display_line, nullptr);
         g_app.next_display_timestamp_us = now_us + VEHICLE_DISPLAY_PERIOD_US;
     }
     if(control_updated ||

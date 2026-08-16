@@ -9,11 +9,11 @@
 typedef void (*VehicleDisplayLineWriter)(uint8_t row, const char *text,
                                          void *context);
 
-typedef struct
+struct VehicleDisplay
 {
     uint8_t page;
     uint8_t refreshes_on_page;
-} VehicleDisplay;
+};
 
 void vehicle_display_init(VehicleDisplay *display);
 void vehicle_display_next_page(VehicleDisplay *display);

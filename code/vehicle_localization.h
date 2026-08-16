@@ -6,7 +6,7 @@
 
 #include "vehicle_types.h"
 
-typedef struct
+struct VehicleLocalizationDiagnostics
 {
     float imu_weight;
     float wheel_weight;
@@ -16,9 +16,9 @@ typedef struct
     float imu_steering_residual_radps;
     bool model_disagreement;
     bool imu_suspect;
-} VehicleLocalizationDiagnostics;
+};
 
-typedef struct
+struct VehicleLocalization
 {
     VehiclePose pose;
     VehicleLocalizationDiagnostics diagnostics;
@@ -28,7 +28,7 @@ typedef struct
     uint32_t invalid_update_count;
     bool configured;
     bool initialized;
-} VehicleLocalization;
+};
 
 bool vehicle_localization_init(VehicleLocalization *localization,
                                float left_meter_per_count,

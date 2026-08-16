@@ -20,7 +20,7 @@ static bool transition(VehicleStateMachine *machine, VehicleState next,
 void vehicle_state_machine_init(VehicleStateMachine *machine,
                                 uint64_t timestamp_us)
 {
-    if(machine != NULL)
+    if(machine != nullptr)
     {
         machine->state = VEHICLE_STATE_BOOT;
         machine->previous_state = VEHICLE_STATE_BOOT;
@@ -35,7 +35,7 @@ bool vehicle_state_machine_update(VehicleStateMachine *machine,
                                   uint64_t timestamp_us)
 {
     VehicleState next;
-    if((machine == NULL) || (events == NULL))
+    if((machine == nullptr) || (events == nullptr))
     {
         return false;
     }
@@ -145,7 +145,7 @@ bool vehicle_state_machine_update(VehicleStateMachine *machine,
 bool vehicle_state_machine_take_entry(VehicleStateMachine *machine,
                                       VehicleState *entered_state)
 {
-    if((machine == NULL) || (entered_state == NULL) || !machine->entry_pending)
+    if((machine == nullptr) || (entered_state == nullptr) || !machine->entry_pending)
     {
         return false;
     }

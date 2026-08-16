@@ -6,22 +6,22 @@
 
 #include "vehicle_types.h"
 
-#define VEHICLE_MT6701_COUNTS_PER_REVOLUTION (16384U)
-#define VEHICLE_MT6701_ANGLE_MASK             (0x3FFFU)
-#define VEHICLE_MT6701_STATUS_FIELD_MASK      (0x03U)
-#define VEHICLE_MT6701_STATUS_PUSH_MASK       (0x04U)
-#define VEHICLE_MT6701_STATUS_TRACK_LOSS_MASK (0x08U)
+constexpr auto VEHICLE_MT6701_COUNTS_PER_REVOLUTION = 16384U;
+constexpr auto VEHICLE_MT6701_ANGLE_MASK = 0x3FFFU;
+constexpr auto VEHICLE_MT6701_STATUS_FIELD_MASK = 0x03U;
+constexpr auto VEHICLE_MT6701_STATUS_PUSH_MASK = 0x04U;
+constexpr auto VEHICLE_MT6701_STATUS_TRACK_LOSS_MASK = 0x08U;
 
-typedef struct
+struct VehicleMt6701Frame
 {
     uint16_t raw_angle;
     uint8_t magnetic_status;
     uint8_t received_crc;
     uint8_t calculated_crc;
     bool crc_valid;
-} VehicleMt6701Frame;
+};
 
-typedef struct
+struct VehicleMt6701
 {
     uint16_t previous_raw_angle;
     uint8_t last_magnetic_status;
@@ -34,7 +34,7 @@ typedef struct
     uint32_t magnetic_error_count;
     uint32_t jump_error_count;
     bool initialized;
-} VehicleMt6701;
+};
 
 uint8_t vehicle_mt6701_crc6(uint32_t angle_and_status_18bits);
 bool vehicle_mt6701_parse_ssi_frame(uint32_t frame_24bits,

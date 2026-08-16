@@ -22,7 +22,7 @@ typedef struct
 /* Compatibility symbol. Cross-core readers must use vision_shared_read(). */
 extern volatile vision_tag_result_t g_vision_result;
 
-void vision_shared_init(void);
+void vision_shared_init();
 void vision_shared_publish(const vision_tag_result_t *result,
                            uint32_t camera_sequence,
                            uint32_t process_us);

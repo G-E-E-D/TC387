@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(vehicle_host_tests C)
+project(vehicle_host_tests C CXX)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -8,19 +8,22 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 add_executable(vehicle_host_tests
     test_vehicle.c
-    ../code/vehicle_calibration.c
-    ../code/vehicle_control.c
-    ../code/vehicle_diagnostics.c
-    ../code/vehicle_encoder.c
-    ../code/vehicle_fault.c
-    ../code/vehicle_localization.c
-    ../code/vehicle_math.c
-    ../code/vehicle_mt6701.c
-    ../code/vehicle_path.c
-    ../code/vehicle_reverse_tracker.c
-    ../code/vehicle_safety.c
-    ../code/vehicle_state_machine.c
+    ../code/vehicle_calibration.cpp
+    ../code/vehicle_control.cpp
+    ../code/vehicle_diagnostics.cpp
+    ../code/vehicle_encoder.cpp
+    ../code/vehicle_fault.cpp
+    ../code/vehicle_localization.cpp
+    ../code/vehicle_math.cpp
+    ../code/vehicle_mt6701.cpp
+    ../code/vehicle_path.cpp
+    ../code/vehicle_reverse_tracker.cpp
+    ../code/vehicle_safety.cpp
+    ../code/vehicle_state_machine.cpp
 )
+
+set_source_files_properties(test_vehicle.c vision_tag_tracker_host_test.c
+    PROPERTIES LANGUAGE CXX)
 
 target_include_directories(vehicle_host_tests PRIVATE ../code)
 
@@ -36,7 +39,7 @@ add_test(NAME vehicle_host_tests COMMAND vehicle_host_tests)
 
 add_executable(vision_tag_tracker_host_tests
     vision_tag_tracker_host_test.c
-    ../code/vision_tag_tracker.c
+    ../code/vision_tag_tracker.cpp
 )
 
 target_include_directories(vision_tag_tracker_host_tests PRIVATE ../code)

@@ -11,11 +11,11 @@
 
 static void set_response(VehicleDiagnostics *diagnostics, const char *text)
 {
-    if((diagnostics == NULL) || (text == NULL))
+    if((diagnostics == nullptr) || (text == nullptr))
     {
         return;
     }
-    (void)snprintf(diagnostics->response, sizeof(diagnostics->response), "%s\r\n", text);
+    static_cast<void>(snprintf(diagnostics->response, sizeof(diagnostics->response), "%s\r\n", text));
     diagnostics->response_pending = true;
 }
 
@@ -23,7 +23,7 @@ static bool parse_duty(const char *text, float *duty)
 {
     char *end;
     float value;
-    if((text == NULL) || (duty == NULL))
+    if((text == nullptr) || (duty == nullptr))
     {
         return false;
     }
@@ -48,7 +48,7 @@ static bool parse_stage1_drive(const char *text, float *speed_mps,
     float speed;
     float steering;
 
-    if((text == NULL) || (speed_mps == NULL) || (steering_rad == NULL))
+    if((text == nullptr) || (speed_mps == nullptr) || (steering_rad == nullptr))
     {
         return false;
     }
@@ -138,7 +138,7 @@ static void parse_command(VehicleDiagnostics *diagnostics)
     float steering_rad;
     for(p = command; *p != '\0'; ++p)
     {
-        *p = (char)toupper((unsigned char)*p);
+        *p = static_cast<char>(toupper(static_cast<unsigned char>(*p)));
     }
     while((*command == ' ') || (*command == '\t'))
     {
@@ -243,7 +243,7 @@ static void parse_command(VehicleDiagnostics *diagnostics)
 
 void vehicle_diagnostics_init(VehicleDiagnostics *diagnostics)
 {
-    if(diagnostics != NULL)
+    if(diagnostics != nullptr)
     {
         diagnostics->command[0] = '\0';
         diagnostics->length = 0U;
@@ -259,7 +259,7 @@ void vehicle_diagnostics_init(VehicleDiagnostics *diagnostics)
 
 void vehicle_diagnostics_feed_byte(VehicleDiagnostics *diagnostics, uint8_t byte)
 {
-    if(diagnostics == NULL)
+    if(diagnostics == nullptr)
     {
         return;
     }
@@ -281,7 +281,7 @@ void vehicle_diagnostics_feed_byte(VehicleDiagnostics *diagnostics, uint8_t byte
         }
         return;
     }
-    if(isprint((unsigned char)byte) == 0)
+    if(isprint(static_cast<unsigned char>(byte)) == 0)
     {
         return;
     }
@@ -291,13 +291,13 @@ void vehicle_diagnostics_feed_byte(VehicleDiagnostics *diagnostics, uint8_t byte
         set_response(diagnostics, "ERR command too long");
         return;
     }
-    diagnostics->command[diagnostics->length++] = (char)byte;
+    diagnostics->command[diagnostics->length++] = static_cast<char>(byte);
 }
 
 bool vehicle_diagnostics_take_request(VehicleDiagnostics *diagnostics,
                                       VehicleDiagnosticRequest *request)
 {
-    if((diagnostics == NULL) || (request == NULL) || !diagnostics->request_pending)
+    if((diagnostics == nullptr) || (request == nullptr) || !diagnostics->request_pending)
     {
         return false;
     }
@@ -313,12 +313,12 @@ bool vehicle_diagnostics_take_request(VehicleDiagnostics *diagnostics,
 bool vehicle_diagnostics_take_response(VehicleDiagnostics *diagnostics,
                                        char *response, size_t response_size)
 {
-    if((diagnostics == NULL) || (response == NULL) || (response_size == 0U) ||
+    if((diagnostics == nullptr) || (response == nullptr) || (response_size == 0U) ||
        !diagnostics->response_pending)
     {
         return false;
     }
-    (void)snprintf(response, response_size, "%s", diagnostics->response);
+    static_cast<void>(snprintf(response, response_size, "%s", diagnostics->response));
     diagnostics->response_pending = false;
     return true;
 }

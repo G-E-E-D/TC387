@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef struct
+struct VehicleStateMachineEvents
 {
     bool boot_complete;
     bool critical_drivers_ready;
@@ -24,16 +24,16 @@ typedef struct
     bool path_valid;
     bool reverse_finished;
     bool fault_active;
-} VehicleStateMachineEvents;
+};
 
-typedef struct
+struct VehicleStateMachine
 {
     VehicleState state;
     VehicleState previous_state;
     uint64_t state_entry_timestamp_us;
     uint32_t transition_count;
     bool entry_pending;
-} VehicleStateMachine;
+};
 
 void vehicle_state_machine_init(VehicleStateMachine *machine,
                                 uint64_t timestamp_us);

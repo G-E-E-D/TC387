@@ -6,10 +6,10 @@
 
 #include "vehicle_types.h"
 
-#define VEHICLE_IMU_AXIS_COUNT       (3U)
-#define VEHICLE_STANDARD_GRAVITY_MPS2 (9.80665f)
+constexpr auto VEHICLE_IMU_AXIS_COUNT = 3U;
+constexpr auto VEHICLE_STANDARD_GRAVITY_MPS2 = 9.80665f;
 
-typedef struct
+struct VehicleImuConfig
 {
     int8_t axis_map[VEHICLE_IMU_AXIS_COUNT];
     int8_t axis_sign[VEHICLE_IMU_AXIS_COUNT];
@@ -18,9 +18,9 @@ typedef struct
     float magnetic_field_gauss_per_lsb;
     float temperature_c_per_lsb;
     float temperature_offset_c;
-} VehicleImuConfig;
+};
 
-typedef struct
+struct VehicleImu
 {
     VehicleImuConfig config;
     ImuSample last_sample;
@@ -36,7 +36,7 @@ typedef struct
     bool initialized;
     bool calibrated;
     bool stationary;
-} VehicleImu;
+};
 
 bool vehicle_imu_config_is_valid(const VehicleImuConfig *config);
 bool vehicle_imu_init(VehicleImu *imu, const VehicleImuConfig *config);

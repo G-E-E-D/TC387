@@ -16,9 +16,9 @@ extern "C" {
 #endif
 
 /* 当前工程默认使用 188 x 120 总钻风。若修改摄像头分辨率，需要同步增大这里的上限。 */
-#define VISION_TAG_MAX_WIDTH       (188U)
-#define VISION_TAG_MAX_HEIGHT      (120U)
-#define VISION_TAG_SCORE_MAX       (1000U)
+constexpr auto VISION_TAG_MAX_WIDTH = 188U;
+constexpr auto VISION_TAG_MAX_HEIGHT = 120U;
+constexpr auto VISION_TAG_SCORE_MAX = 1000U;
 
 typedef struct
 {
@@ -102,7 +102,7 @@ typedef struct
 /** 填充推荐初值。调用者可修改后再传给 vision_tag_tracker_init。 */
 void vision_tag_tracker_default_config(vision_tag_config_t *config);
 
-/** 初始化单实例跟踪器；config 为 NULL 时使用推荐初值。 */
+/** 初始化单实例跟踪器；config 为 nullptr 时使用推荐初值。 */
 void vision_tag_tracker_init(const vision_tag_config_t *config);
 
 /** Build the scale term from one measured frame at a known distance. */
@@ -125,7 +125,7 @@ const vision_tag_result_t *vision_tag_tracker_process(const uint8_t *image,
                                                        uint16_t stride);
 
 /** 取得最近一次处理结果；同样仅适合同一任务/CPU 同步读取。 */
-const vision_tag_result_t *vision_tag_tracker_get_result(void);
+const vision_tag_result_t *vision_tag_tracker_get_result();
 
 #ifdef __cplusplus
 }

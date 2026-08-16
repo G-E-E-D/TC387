@@ -4,7 +4,7 @@
 
 #include <string.h>
 
-#define VISION_EXPOSURE_PENDING (0x80000000U)
+constexpr auto VISION_EXPOSURE_PENDING = 0x80000000U;
 
 #if defined(__TASKING__)
 #pragma section all "cpu0_dsram"
@@ -21,10 +21,9 @@ static uint16_t s_exposure_failures;
 #pragma section all restore
 #endif
 
-void vision_shared_init(void)
+void vision_shared_init()
 {
-    vision_tag_result_t empty;
-    memset(&empty, 0, sizeof(empty));
+    vision_tag_result_t empty{};
 
     s_result_sequence = 1U;
     __dsync();
@@ -45,7 +44,7 @@ void vision_shared_publish(const vision_tag_result_t *result,
 {
     uint32_t sequence;
 
-    if (result == NULL)
+    if (result == nullptr)
     {
         return;
     }
@@ -75,7 +74,7 @@ uint8_t vision_shared_read(vision_runtime_snapshot_t *snapshot)
     uint32_t exposure_status;
     uint32_t attempts;
 
-    if (snapshot == NULL)
+    if (snapshot == nullptr)
     {
         return 0U;
     }
@@ -97,20 +96,20 @@ uint8_t vision_shared_read(vision_runtime_snapshot_t *snapshot)
         if((before == after) && ((after & 1U) == 0U))
         {
             exposure_status = s_exposure_status;
-            snapshot->exposure_applied = (uint16_t)(exposure_status & 0xFFFFU);
-            snapshot->exposure_failures = (uint16_t)(exposure_status >> 16);
+            snapshot->exposure_applied = static_cast<uint16_t>(exposure_status & 0xFFFFU);
+            snapshot->exposure_failures = static_cast<uint16_t>(exposure_status >> 16);
             return 1U;
         }
     }
 
     /* A stalled publisher must not block the vehicle control loop forever. */
-    memset(snapshot, 0, sizeof(*snapshot));
+    *snapshot = {};
     return 0U;
 }
 
 void vision_shared_request_exposure(uint16_t exposure)
 {
-    __swap((void *)&s_exposure_request, VISION_EXPOSURE_PENDING | (uint32_t)exposure);
+    __swap((void *)&s_exposure_request, VISION_EXPOSURE_PENDING | static_cast<uint32_t>(exposure));
 }
 
 uint8_t vision_shared_take_exposure_request(uint16_t *exposure)
@@ -120,9 +119,9 @@ uint8_t vision_shared_take_exposure_request(uint16_t *exposure)
     {
         return 0U;
     }
-    if (exposure != NULL)
+    if (exposure != nullptr)
     {
-        *exposure = (uint16_t)(request & 0xFFFFU);
+        *exposure = static_cast<uint16_t>(request & 0xFFFFU);
     }
     return 1U;
 }
@@ -134,6 +133,6 @@ void vision_shared_set_exposure_status(uint16_t exposure, uint8_t success)
         ++s_exposure_failures;
     }
     __swap((void *)&s_exposure_status,
-           ((uint32_t)s_exposure_failures << 16) | (uint32_t)exposure);
+           (static_cast<uint32_t>(s_exposure_failures) << 16) | static_cast<uint32_t>(exposure));
 }
 

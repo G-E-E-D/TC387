@@ -7,7 +7,7 @@
 #pragma tradeoff 0
 #endif
 
-#define VISION_IPS_PIXEL_COUNT  (MT9V03X_W * MT9V03X_H)
+constexpr auto VISION_IPS_PIXEL_COUNT = MT9V03X_W * MT9V03X_H;
 
 #if defined(__TASKING__)
 #pragma section all "cpu1_dsram"
@@ -38,7 +38,7 @@ static void vision_ips_set_region(uint16 x1, uint16 y1, uint16 x2, uint16 y2)
     vision_ips_write_command(0x2CU);
 }
 
-void vision_ips_fast_init(void)
+void vision_ips_fast_init()
 {
     uint16 gray;
 
@@ -54,8 +54,8 @@ static void vision_ips_draw_bbox(int16_t x, int16_t y, int16_t width, int16_t he
 {
     int16_t x0 = x;
     int16_t y0 = y;
-    int16_t x1 = (int16_t)(x + width - 1);
-    int16_t y1 = (int16_t)(y + height - 1);
+    int16_t x1 = static_cast<int16_t>(x + width - 1);
+    int16_t y1 = static_cast<int16_t>(y + height - 1);
     int16_t pixel;
 
     if ((width <= 1) || (height <= 1))
@@ -64,8 +64,8 @@ static void vision_ips_draw_bbox(int16_t x, int16_t y, int16_t width, int16_t he
     }
     if (x0 < 0) { x0 = 0; }
     if (y0 < 0) { y0 = 0; }
-    if (x1 >= (int16_t)MT9V03X_W) { x1 = (int16_t)MT9V03X_W - 1; }
-    if (y1 >= (int16_t)MT9V03X_H) { y1 = (int16_t)MT9V03X_H - 1; }
+    if (x1 >= static_cast<int16_t>(MT9V03X_W)) { x1 = static_cast<int16_t>(MT9V03X_W) - 1; }
+    if (y1 >= static_cast<int16_t>(MT9V03X_H)) { y1 = static_cast<int16_t>(MT9V03X_H) - 1; }
     if ((x0 >= x1) || (y0 >= y1))
     {
         return;
@@ -89,16 +89,16 @@ static void vision_ips_draw_line(vision_tag_point_t start,
 {
     int16_t x = start.x;
     int16_t y = start.y;
-    int16_t dx = (int16_t)((end.x >= start.x) ? (end.x - start.x) : (start.x - end.x));
+    int16_t dx = static_cast<int16_t>((end.x >= start.x) ? (end.x - start.x) : (start.x - end.x));
     int16_t sx = (start.x < end.x) ? 1 : -1;
-    int16_t dy = (int16_t)(-((end.y >= start.y) ? (end.y - start.y) : (start.y - end.y)));
+    int16_t dy = static_cast<int16_t>(-((end.y >= start.y) ? (end.y - start.y) : (start.y - end.y)));
     int16_t sy = (start.y < end.y) ? 1 : -1;
-    int16_t error = (int16_t)(dx + dy);
+    int16_t error = static_cast<int16_t>(dx + dy);
 
     while (1)
     {
-        if ((x >= 0) && (x < (int16_t)MT9V03X_W)
-            && (y >= 0) && (y < (int16_t)MT9V03X_H))
+        if ((x >= 0) && (x < static_cast<int16_t>(MT9V03X_W))
+            && (y >= 0) && (y < static_cast<int16_t>(MT9V03X_H)))
         {
             s_rgb565_frame[(uint32)y * MT9V03X_W + (uint16)x] = color;
         }
@@ -107,9 +107,9 @@ static void vision_ips_draw_line(vision_tag_point_t start,
             break;
         }
         {
-            int16_t doubled = (int16_t)(2 * error);
-            if (doubled >= dy) { error = (int16_t)(error + dy); x = (int16_t)(x + sx); }
-            if (doubled <= dx) { error = (int16_t)(error + dx); y = (int16_t)(y + sy); }
+            int16_t doubled = static_cast<int16_t>(2 * error);
+            if (doubled >= dy) { error = static_cast<int16_t>(error + dy); x = static_cast<int16_t>(x + sx); }
+            if (doubled <= dx) { error = static_cast<int16_t>(error + dx); y = static_cast<int16_t>(y + sy); }
         }
     }
 }
@@ -120,7 +120,7 @@ void vision_ips_fast_show_gray(const uint8_t *image,
     uint32 pixel;
     uint16 row;
 
-    if(NULL == image)
+    if(nullptr == image)
     {
         return;
     }
@@ -131,7 +131,7 @@ void vision_ips_fast_show_gray(const uint8_t *image,
         s_rgb565_frame[pixel] = s_gray_rgb565_lut[image[pixel]];
     }
 
-    if ((result != NULL) && (result->valid != 0U))
+    if ((result != nullptr) && (result->valid != 0U))
     {
         uint16 color = (result->predicted != 0U) ? RGB565_YELLOW : RGB565_GREEN;
         if ((result->detected != 0U) && (result->has_corners != 0U))

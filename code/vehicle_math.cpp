@@ -66,7 +66,7 @@ bool vehicle_float_array_is_finite(const float *values, unsigned int count)
 {
     unsigned int index;
 
-    if(values == NULL)
+    if(values == nullptr)
     {
         return false;
     }

@@ -10,7 +10,7 @@
 
 typedef bool (*VehicleLogTryWriteByte)(uint8_t byte, void *context);
 
-typedef struct
+struct VehicleLog
 {
     uint8_t data[VEHICLE_LOG_BUFFER_SIZE];
     uint32_t read_index;
@@ -19,7 +19,7 @@ typedef struct
     uint32_t dropped_lines;
     bool csv_enabled;
     bool header_pending;
-} VehicleLog;
+};
 
 void vehicle_log_init(VehicleLog *log);
 void vehicle_log_set_csv_enabled(VehicleLog *log, bool enabled);

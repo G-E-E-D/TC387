@@ -6,7 +6,7 @@
 
 #include "vehicle_types.h"
 
-typedef enum
+enum VehiclePathResult
 {
     VEHICLE_PATH_RESULT_OK = 0,
     VEHICLE_PATH_RESULT_SAMPLE_SKIPPED,
@@ -18,17 +18,17 @@ typedef enum
     VEHICLE_PATH_RESULT_TOO_SHORT,
     VEHICLE_PATH_RESULT_DISCONTINUITY,
     VEHICLE_PATH_RESULT_INVALID_PATH
-} VehiclePathResult;
+};
 
-typedef struct
+struct VehiclePathSample
 {
     float x_m;
     float y_m;
     float yaw_rad;
     float speed_mps;
-} VehiclePathSample;
+};
 
-typedef struct
+struct VehiclePathInfo
 {
     uint32_t point_count;
     float length_m;
@@ -40,30 +40,30 @@ typedef struct
     bool overflowed;
     bool distance_limit_reached;
     VehiclePathResult last_result;
-} VehiclePathInfo;
+};
 
-void vehicle_path_reset(void);
+void vehicle_path_reset();
 VehiclePathResult vehicle_path_start_recording(const VehiclePathSample *sample);
 VehiclePathResult vehicle_path_record_sample(const VehiclePathSample *sample);
-VehiclePathResult vehicle_path_end_recording(void);
+VehiclePathResult vehicle_path_end_recording();
 
 /* Copies test or imported data into the same static path buffer. */
 VehiclePathResult vehicle_path_load_raw_points(const PathPoint *points,
                                                uint32_t point_count);
 
 /* Deduplicates, resamples, smooths and computes forward curvature in place. */
-VehiclePathResult vehicle_path_preprocess(void);
+VehiclePathResult vehicle_path_preprocess();
 
 VehiclePathResult vehicle_path_validate_points(const PathPoint *points,
                                                uint32_t point_count,
                                                float *length_m,
                                                uint32_t *bad_index);
 
-const PathPoint *vehicle_path_get_points(void);
+const PathPoint *vehicle_path_get_points();
 const PathPoint *vehicle_path_get_point(uint32_t index);
-uint32_t vehicle_path_get_count(void);
-VehiclePathInfo vehicle_path_get_info(void);
-bool vehicle_path_is_valid(void);
+uint32_t vehicle_path_get_count();
+VehiclePathInfo vehicle_path_get_info();
+bool vehicle_path_is_valid();
 bool vehicle_path_result_is_error(VehiclePathResult result);
 
 #endif

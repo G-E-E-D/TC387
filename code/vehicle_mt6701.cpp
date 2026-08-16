@@ -5,13 +5,13 @@
 #include "vehicle_config.h"
 #include "vehicle_math.h"
 
-#define VEHICLE_MT6701_FRAME_MASK UINT32_C(0x00FFFFFF)
-#define VEHICLE_MT6701_DATA_MASK  UINT32_C(0x0003FFFF)
-#define VEHICLE_MT6701_CRC_MASK   UINT32_C(0x0000003F)
+constexpr auto VEHICLE_MT6701_FRAME_MASK = UINT32_C(0x00FFFFFF);
+constexpr auto VEHICLE_MT6701_DATA_MASK = UINT32_C(0x0003FFFF);
+constexpr auto VEHICLE_MT6701_CRC_MASK = UINT32_C(0x0000003F);
 
 static void vehicle_mt6701_increment(uint32_t *counter)
 {
-    if((counter != NULL) && (*counter < UINT32_MAX))
+    if((counter != nullptr) && (*counter < UINT32_MAX))
     {
         ++(*counter);
     }
@@ -20,19 +20,19 @@ static void vehicle_mt6701_increment(uint32_t *counter)
 static bool vehicle_mt6701_add_count(int64_t count, int32_t delta,
                                      int64_t *result)
 {
-    if(result == NULL)
+    if(result == nullptr)
     {
         return false;
     }
-    if((delta > 0) && (count > (INT64_MAX - (int64_t)delta)))
+    if((delta > 0) && (count > (INT64_MAX - static_cast<int64_t>(delta))))
     {
         return false;
     }
-    if((delta < 0) && (count < (INT64_MIN - (int64_t)delta)))
+    if((delta < 0) && (count < (INT64_MIN - static_cast<int64_t>(delta))))
     {
         return false;
     }
-    *result = count + (int64_t)delta;
+    *result = count + static_cast<int64_t>(delta);
     return true;
 }
 
@@ -42,7 +42,7 @@ static void vehicle_mt6701_fill_sample(const VehicleMt6701 *sensor,
 {
     int64_t relative_count;
 
-    if(sample == NULL)
+    if(sample == nullptr)
     {
         return;
     }
@@ -53,8 +53,8 @@ static void vehicle_mt6701_fill_sample(const VehicleMt6701 *sensor,
     sample->magnetic_status = sensor->last_magnetic_status;
     sample->continuous_count = sensor->continuous_count;
     sample->relative_count = relative_count;
-    sample->angle_rad = (float)relative_count * VEHICLE_TWO_PI_F /
-                        (float)VEHICLE_MT6701_COUNTS_PER_REVOLUTION;
+    sample->angle_rad = static_cast<float>(relative_count) * VEHICLE_TWO_PI_F /
+                        static_cast<float>(VEHICLE_MT6701_COUNTS_PER_REVOLUTION);
     sample->valid = valid;
 }
 
@@ -70,10 +70,10 @@ uint8_t vehicle_mt6701_crc6(uint32_t angle_and_status_18bits)
         uint8_t input_bit;
         uint8_t feedback;
 
-        input_bit = (uint8_t)((angle_and_status_18bits >>
+        input_bit = static_cast<uint8_t>((angle_and_status_18bits >>
                                (bit_index - 1U)) & UINT32_C(1));
-        feedback = (uint8_t)(((crc >> 5U) & UINT8_C(1)) ^ input_bit);
-        crc = (uint8_t)((crc << 1U) & UINT8_C(0x3F));
+        feedback = static_cast<uint8_t>(((crc >> 5U) & UINT8_C(1)) ^ input_bit);
+        crc = static_cast<uint8_t>((crc << 1U) & UINT8_C(0x3F));
         if(feedback != 0U)
         {
             crc ^= UINT8_C(0x03);
@@ -87,7 +87,7 @@ bool vehicle_mt6701_parse_ssi_frame(uint32_t frame_24bits,
 {
     uint32_t payload;
 
-    if(decoded == NULL)
+    if(decoded == nullptr)
     {
         return false;
     }
@@ -105,10 +105,10 @@ bool vehicle_mt6701_parse_ssi_frame(uint32_t frame_24bits,
 
     /* The first SSI bit shifted in is represented as bit 23. */
     payload = (frame_24bits >> 6U) & VEHICLE_MT6701_DATA_MASK;
-    decoded->raw_angle = (uint16_t)((payload >> 4U) &
+    decoded->raw_angle = static_cast<uint16_t>((payload >> 4U) &
                                     VEHICLE_MT6701_ANGLE_MASK);
-    decoded->magnetic_status = (uint8_t)(payload & UINT32_C(0x0F));
-    decoded->received_crc = (uint8_t)(frame_24bits &
+    decoded->magnetic_status = static_cast<uint8_t>(payload & UINT32_C(0x0F));
+    decoded->received_crc = static_cast<uint8_t>(frame_24bits &
                                       VEHICLE_MT6701_CRC_MASK);
     decoded->calculated_crc = vehicle_mt6701_crc6(payload);
     decoded->crc_valid = decoded->received_crc == decoded->calculated_crc;
@@ -130,8 +130,8 @@ int32_t vehicle_mt6701_delta14(uint16_t current_angle,
 {
     int32_t delta;
 
-    delta = (int32_t)(current_angle & VEHICLE_MT6701_ANGLE_MASK) -
-            (int32_t)(previous_angle & VEHICLE_MT6701_ANGLE_MASK);
+    delta = static_cast<int32_t>(current_angle & VEHICLE_MT6701_ANGLE_MASK) -
+            static_cast<int32_t>(previous_angle & VEHICLE_MT6701_ANGLE_MASK);
     if(delta >= INT32_C(8192))
     {
         delta -= INT32_C(16384);
@@ -145,7 +145,7 @@ int32_t vehicle_mt6701_delta14(uint16_t current_angle,
 
 void vehicle_mt6701_init(VehicleMt6701 *sensor)
 {
-    if(sensor != NULL)
+    if(sensor != nullptr)
     {
         sensor->previous_raw_angle = 0U;
         sensor->last_magnetic_status = 0U;
@@ -163,7 +163,7 @@ void vehicle_mt6701_init(VehicleMt6701 *sensor)
 
 bool vehicle_mt6701_set_relative_zero(VehicleMt6701 *sensor)
 {
-    if((sensor == NULL) || !sensor->initialized)
+    if((sensor == nullptr) || !sensor->initialized)
     {
         return false;
     }
@@ -180,7 +180,7 @@ bool vehicle_mt6701_update_angle(VehicleMt6701 *sensor, uint16_t raw_angle,
     int32_t delta;
     int64_t next_count;
 
-    if((sensor == NULL) || (sample == NULL))
+    if((sensor == nullptr) || (sample == nullptr))
     {
         return false;
     }
@@ -192,7 +192,7 @@ bool vehicle_mt6701_update_angle(VehicleMt6701 *sensor, uint16_t raw_angle,
     }
 
     if(!communication_ok ||
-       ((raw_angle & (uint16_t)~VEHICLE_MT6701_ANGLE_MASK) != 0U) ||
+       ((raw_angle & static_cast<uint16_t>(~VEHICLE_MT6701_ANGLE_MASK)) != 0U) ||
        ((magnetic_status & UINT8_C(0xF0)) != 0U))
     {
         vehicle_mt6701_increment(&sensor->communication_error_count);
@@ -217,7 +217,7 @@ bool vehicle_mt6701_update_angle(VehicleMt6701 *sensor, uint16_t raw_angle,
     {
         sensor->previous_raw_angle = raw_angle;
         sensor->last_magnetic_status = magnetic_status;
-        sensor->continuous_count = (int64_t)raw_angle;
+        sensor->continuous_count = static_cast<int64_t>(raw_angle);
         sensor->relative_zero_count = sensor->continuous_count;
         sensor->last_valid_timestamp_us = timestamp_us;
         sensor->initialized = true;
@@ -263,7 +263,7 @@ bool vehicle_mt6701_update_ssi(VehicleMt6701 *sensor, uint32_t frame_24bits,
 bool vehicle_mt6701_is_fresh(const VehicleMt6701 *sensor, uint64_t now_us,
                              uint64_t timeout_us)
 {
-    if((sensor == NULL) || !sensor->initialized ||
+    if((sensor == nullptr) || !sensor->initialized ||
        (now_us < sensor->last_valid_timestamp_us))
     {
         return false;

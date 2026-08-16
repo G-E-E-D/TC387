@@ -17,21 +17,21 @@ static void vehicle_encoder_increment_error(VehicleEncoder *encoder)
 static bool vehicle_encoder_add_count(int64_t count, int32_t delta,
                                       int64_t *result)
 {
-    if(result == NULL)
+    if(result == nullptr)
     {
         return false;
     }
-    if((delta > 0) && (count > (INT64_MAX - (int64_t)delta)))
+    if((delta > 0) && (count > (INT64_MAX - static_cast<int64_t>(delta))))
     {
         *result = INT64_MAX;
         return false;
     }
-    if((delta < 0) && (count < (INT64_MIN - (int64_t)delta)))
+    if((delta < 0) && (count < (INT64_MIN - static_cast<int64_t>(delta))))
     {
         *result = INT64_MIN;
         return false;
     }
-    *result = count + (int64_t)delta;
+    *result = count + static_cast<int64_t>(delta);
     return true;
 }
 
@@ -40,7 +40,7 @@ static void vehicle_encoder_fill_sample(const VehicleEncoder *encoder,
                                         int32_t delta_count, bool valid,
                                         WheelEncoderSample *sample)
 {
-    if(sample != NULL)
+    if(sample != nullptr)
     {
         sample->timestamp_us = timestamp_us;
         sample->count = encoder->continuous_count;
@@ -55,13 +55,13 @@ int32_t vehicle_encoder_delta16(uint16_t current_count,
 {
     uint32_t modular_delta;
 
-    modular_delta = ((uint32_t)current_count - (uint32_t)previous_count) &
+    modular_delta = (static_cast<uint32_t>(current_count) - static_cast<uint32_t>(previous_count)) &
                     UINT32_C(0xFFFF);
     if(modular_delta >= UINT32_C(0x8000))
     {
-        return (int32_t)modular_delta - INT32_C(65536);
+        return static_cast<int32_t>(modular_delta) - INT32_C(65536);
     }
-    return (int32_t)modular_delta;
+    return static_cast<int32_t>(modular_delta);
 }
 
 bool vehicle_encoder_init(VehicleEncoder *encoder, int8_t forward_sign,
@@ -69,7 +69,7 @@ bool vehicle_encoder_init(VehicleEncoder *encoder, int8_t forward_sign,
 {
     bool valid;
 
-    if(encoder == NULL)
+    if(encoder == nullptr)
     {
         return false;
     }
@@ -93,7 +93,7 @@ bool vehicle_encoder_init(VehicleEncoder *encoder, int8_t forward_sign,
 
 void vehicle_encoder_reset(VehicleEncoder *encoder, int64_t count)
 {
-    if(encoder != NULL)
+    if(encoder != nullptr)
     {
         encoder->previous_raw_count = 0U;
         encoder->previous_timestamp_us = 0U;
@@ -116,7 +116,7 @@ bool vehicle_encoder_update(VehicleEncoder *encoder, uint16_t raw_count,
     float next_speed_mps;
     bool count_valid;
 
-    if((encoder == NULL) || (sample == NULL))
+    if((encoder == nullptr) || (sample == nullptr))
     {
         return false;
     }
@@ -146,11 +146,11 @@ bool vehicle_encoder_update(VehicleEncoder *encoder, uint16_t raw_count,
     }
 
     delta_time_us = timestamp_us - encoder->previous_timestamp_us;
-    delta_time_s = (float)delta_time_us * 1.0e-6f;
+    delta_time_s = static_cast<float>(delta_time_us) * 1.0e-6f;
     raw_delta = vehicle_encoder_delta16(raw_count,
                                         encoder->previous_raw_count);
-    signed_delta = raw_delta * (int32_t)encoder->forward_sign;
-    next_speed_mps = ((float)signed_delta * encoder->meter_per_count) /
+    signed_delta = raw_delta * static_cast<int32_t>(encoder->forward_sign);
+    next_speed_mps = (static_cast<float>(signed_delta) * encoder->meter_per_count) /
                      delta_time_s;
     count_valid = vehicle_encoder_add_count(encoder->continuous_count,
                                             signed_delta, &next_count);
@@ -178,7 +178,7 @@ bool vehicle_encoder_update(VehicleEncoder *encoder, uint16_t raw_count,
 bool vehicle_encoder_is_fresh(const VehicleEncoder *encoder,
                               uint64_t now_us, uint64_t timeout_us)
 {
-    if((encoder == NULL) || !encoder->initialized ||
+    if((encoder == nullptr) || !encoder->initialized ||
        (now_us < encoder->previous_timestamp_us))
     {
         return false;

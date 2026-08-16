@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-bool vehicle_app_init(void);
-void vehicle_app_process(void);
+bool vehicle_app_init();
+void vehicle_app_process();
 
 #endif

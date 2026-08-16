@@ -4,7 +4,7 @@
 
 void vehicle_fault_init(VehicleFaultManager *manager)
 {
-    if(manager != NULL)
+    if(manager != nullptr)
     {
         manager->active_flags = VEHICLE_FAULT_NONE;
         manager->latched_flags = VEHICLE_FAULT_NONE;
@@ -17,7 +17,7 @@ void vehicle_fault_init(VehicleFaultManager *manager)
 void vehicle_fault_latch(VehicleFaultManager *manager, uint32_t flags,
                          uint64_t timestamp_us)
 {
-    if((manager == NULL) || (flags == VEHICLE_FAULT_NONE))
+    if((manager == nullptr) || (flags == VEHICLE_FAULT_NONE))
     {
         return;
     }
@@ -32,7 +32,7 @@ void vehicle_fault_latch(VehicleFaultManager *manager, uint32_t flags,
 void vehicle_fault_raise(VehicleFaultManager *manager, uint32_t flags,
                          bool immediate_stop, uint64_t timestamp_us)
 {
-    if((manager == NULL) || (flags == VEHICLE_FAULT_NONE))
+    if((manager == nullptr) || (flags == VEHICLE_FAULT_NONE))
     {
         return;
     }
@@ -45,7 +45,7 @@ void vehicle_fault_set_condition(VehicleFaultManager *manager, uint32_t flags,
                                  bool condition, bool immediate_stop,
                                  uint64_t timestamp_us)
 {
-    if(manager == NULL)
+    if(manager == nullptr)
     {
         return;
     }
@@ -61,14 +61,14 @@ void vehicle_fault_set_condition(VehicleFaultManager *manager, uint32_t flags,
 
 bool vehicle_fault_has_active(const VehicleFaultManager *manager)
 {
-    return (manager != NULL) && (manager->active_flags != VEHICLE_FAULT_NONE);
+    return (manager != nullptr) && (manager->active_flags != VEHICLE_FAULT_NONE);
 }
 
 bool vehicle_fault_manual_reset(VehicleFaultManager *manager,
                                 uint32_t still_present_flags,
                                 uint64_t timestamp_us)
 {
-    if(manager == NULL)
+    if(manager == nullptr)
     {
         return false;
     }

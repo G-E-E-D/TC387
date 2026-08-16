@@ -6,16 +6,16 @@
 #include "vehicle_config.h"
 #include "vehicle_math.h"
 
-typedef char VehiclePathPointSizeCheck[
-    (sizeof(PathPoint) == PATH_POINT_SIZE_BYTES) ? 1 : -1];
+static_assert(sizeof(PathPoint) == PATH_POINT_SIZE_BYTES,
+              "PathPoint layout must match the persistent path format");
 
-typedef struct
+struct VehiclePathState
 {
     VehiclePathInfo info;
     VehiclePathSample last_input;
     float pending_distance_m;
     bool have_last_input;
-} VehiclePathState;
+};
 
 static PathPoint g_vehicle_path_points[PATH_MAX_POINTS];
 static VehiclePathState g_vehicle_path_state;
@@ -28,7 +28,7 @@ static VehiclePathResult vehicle_path_set_result(VehiclePathResult result)
 
 static bool vehicle_path_sample_is_finite(const VehiclePathSample *sample)
 {
-    return (sample != NULL) && vehicle_float_is_finite(sample->x_m) &&
+    return (sample != nullptr) && vehicle_float_is_finite(sample->x_m) &&
            vehicle_float_is_finite(sample->y_m) &&
            vehicle_float_is_finite(sample->yaw_rad) &&
            vehicle_float_is_finite(sample->speed_mps);
@@ -36,7 +36,7 @@ static bool vehicle_path_sample_is_finite(const VehiclePathSample *sample)
 
 static bool vehicle_path_point_base_is_finite(const PathPoint *point)
 {
-    return (point != NULL) && vehicle_float_is_finite(point->x) &&
+    return (point != nullptr) && vehicle_float_is_finite(point->x) &&
            vehicle_float_is_finite(point->y) &&
            vehicle_float_is_finite(point->yaw_body) &&
            vehicle_float_is_finite(point->recorded_speed);
@@ -119,7 +119,7 @@ static VehiclePathResult vehicle_path_append_sample(
     return VEHICLE_PATH_RESULT_OK;
 }
 
-static VehiclePathResult vehicle_path_compact_and_unwrap(void)
+static VehiclePathResult vehicle_path_compact_and_unwrap()
 {
     uint32_t read_index;
     uint32_t write_index;
@@ -196,7 +196,7 @@ static VehiclePathResult vehicle_path_compact_and_unwrap(void)
     return VEHICLE_PATH_RESULT_OK;
 }
 
-static VehiclePathResult vehicle_path_densify_in_place(void)
+static VehiclePathResult vehicle_path_densify_in_place()
 {
     uint32_t read_index;
     uint32_t write_index;
@@ -219,12 +219,12 @@ static VehiclePathResult vehicle_path_densify_in_place(void)
         }
         segment_count_f = ceilf(segment_m / PATH_RECORD_SPACING_M);
         if(!vehicle_float_is_finite(segment_count_f) ||
-           (segment_count_f > (float)PATH_MAX_POINTS))
+           (segment_count_f > static_cast<float>(PATH_MAX_POINTS)))
         {
             g_vehicle_path_state.info.overflowed = true;
             return vehicle_path_set_result(VEHICLE_PATH_RESULT_OVERFLOW);
         }
-        segment_count = (uint32_t)segment_count_f;
+        segment_count = static_cast<uint32_t>(segment_count_f);
         if(segment_count == 0U)
         {
             segment_count = 1U;
@@ -251,7 +251,7 @@ static VehiclePathResult vehicle_path_densify_in_place(void)
         PathPoint end = g_vehicle_path_points[read_index];
         float segment_m = hypotf(end.x - start.x, end.y - start.y);
         uint32_t segment_count =
-            (uint32_t)ceilf(segment_m / PATH_RECORD_SPACING_M);
+            static_cast<uint32_t>(ceilf(segment_m / PATH_RECORD_SPACING_M));
         uint32_t part;
 
         if(segment_count == 0U)
@@ -260,7 +260,7 @@ static VehiclePathResult vehicle_path_densify_in_place(void)
         }
         for(part = segment_count; part > 0U; --part)
         {
-            float ratio = (float)part / (float)segment_count;
+            float ratio = static_cast<float>(part) / static_cast<float>(segment_count);
             float arc_length_m = start.s +
                                  (end.s - start.s) * ratio;
 
@@ -276,7 +276,7 @@ static VehiclePathResult vehicle_path_densify_in_place(void)
     return VEHICLE_PATH_RESULT_OK;
 }
 
-static VehiclePathResult vehicle_path_recompute_geometry(void)
+static VehiclePathResult vehicle_path_recompute_geometry()
 {
     uint32_t index;
     float cumulative_s = 0.0f;
@@ -325,7 +325,7 @@ static VehiclePathResult vehicle_path_recompute_geometry(void)
     return VEHICLE_PATH_RESULT_OK;
 }
 
-static VehiclePathResult vehicle_path_resample_in_place(void)
+static VehiclePathResult vehicle_path_resample_in_place()
 {
     uint32_t input_count = g_vehicle_path_state.info.point_count;
     uint32_t interval_count;
@@ -341,8 +341,8 @@ static VehiclePathResult vehicle_path_resample_in_place(void)
         return vehicle_path_set_result(VEHICLE_PATH_RESULT_TOO_SHORT);
     }
 
-    interval_count = (uint32_t)floorf(total_length_m /
-                                      PATH_RESAMPLE_SPACING_M);
+    interval_count = static_cast<uint32_t>(floorf(total_length_m /
+                                      PATH_RESAMPLE_SPACING_M));
     if(interval_count < (PATH_MIN_VALID_POINTS - 1U))
     {
         interval_count = PATH_MIN_VALID_POINTS - 1U;
@@ -356,13 +356,13 @@ static VehiclePathResult vehicle_path_resample_in_place(void)
     {
         return vehicle_path_set_result(VEHICLE_PATH_RESULT_INVALID_PATH);
     }
-    actual_spacing_m = total_length_m / (float)interval_count;
+    actual_spacing_m = total_length_m / static_cast<float>(interval_count);
 
     for(output_index = 0U; output_index < output_count; ++output_index)
     {
         float target_s = (output_index == (output_count - 1U))
                              ? total_length_m
-                             : actual_spacing_m * (float)output_index;
+                             : actual_spacing_m * static_cast<float>(output_index);
         PathPoint start;
         PathPoint end;
         float denominator;
@@ -397,7 +397,7 @@ static VehiclePathResult vehicle_path_resample_in_place(void)
     return VEHICLE_PATH_RESULT_OK;
 }
 
-static void vehicle_path_smooth_in_place(void)
+static void vehicle_path_smooth_in_place()
 {
     enum
     {
@@ -435,15 +435,15 @@ static void vehicle_path_smooth_in_place(void)
                 float sum_weight = 0.0f;
                 int32_t offset;
 
-                for(offset = -(int32_t)half_window;
-                    offset <= (int32_t)half_window;
+                for(offset = -static_cast<int32_t>(half_window);
+                    offset <= static_cast<int32_t>(half_window);
                     ++offset)
                 {
                     uint32_t source =
-                        (uint32_t)((int32_t)center_index + offset);
+                        static_cast<uint32_t>(static_cast<int32_t>(center_index) + offset);
                     float weight =
-                        (float)(half_window + 1U -
-                                (uint32_t)((offset < 0) ? -offset : offset));
+                        static_cast<float>(half_window + 1U -
+                                static_cast<uint32_t>((offset < 0) ? -offset : offset));
                     const PathPoint *original = &window[source % WINDOW_SIZE];
 
                     sum_x += original->x * weight;
@@ -463,7 +463,7 @@ static void vehicle_path_smooth_in_place(void)
     }
 }
 
-static VehiclePathResult vehicle_path_compute_curvature(void)
+static VehiclePathResult vehicle_path_compute_curvature()
 {
     uint32_t index;
 
@@ -499,7 +499,7 @@ static VehiclePathResult vehicle_path_compute_curvature(void)
     return VEHICLE_PATH_RESULT_OK;
 }
 
-void vehicle_path_reset(void)
+void vehicle_path_reset()
 {
     g_vehicle_path_state.info.point_count = 0U;
     g_vehicle_path_state.info.length_m = 0.0f;
@@ -668,7 +668,7 @@ VehiclePathResult vehicle_path_record_sample(const VehiclePathSample *sample)
                                             : VEHICLE_PATH_RESULT_SAMPLE_SKIPPED);
 }
 
-VehiclePathResult vehicle_path_end_recording(void)
+VehiclePathResult vehicle_path_end_recording()
 {
     if(!g_vehicle_path_state.have_last_input ||
        g_vehicle_path_state.info.point_count == 0U)
@@ -704,7 +704,7 @@ VehiclePathResult vehicle_path_load_raw_points(const PathPoint *points,
 {
     uint32_t index;
 
-    if(points == NULL || point_count == 0U)
+    if(points == nullptr || point_count == 0U)
     {
         return VEHICLE_PATH_RESULT_INVALID_ARGUMENT;
     }
@@ -737,7 +737,7 @@ VehiclePathResult vehicle_path_load_raw_points(const PathPoint *points,
     return vehicle_path_set_result(VEHICLE_PATH_RESULT_OK);
 }
 
-VehiclePathResult vehicle_path_preprocess(void)
+VehiclePathResult vehicle_path_preprocess()
 {
     VehiclePathResult result;
     uint32_t bad_index;
@@ -799,7 +799,7 @@ VehiclePathResult vehicle_path_preprocess(void)
         &validated_length_m, &bad_index);
     if(result != VEHICLE_PATH_RESULT_OK)
     {
-        (void)bad_index;
+        static_cast<void>(bad_index);
         return vehicle_path_set_result(result);
     }
 
@@ -816,15 +816,15 @@ VehiclePathResult vehicle_path_validate_points(const PathPoint *points,
 {
     uint32_t index;
 
-    if(length_m != NULL)
+    if(length_m != nullptr)
     {
         *length_m = 0.0f;
     }
-    if(bad_index != NULL)
+    if(bad_index != nullptr)
     {
         *bad_index = 0U;
     }
-    if(points == NULL || point_count > PATH_MAX_POINTS)
+    if(points == nullptr || point_count > PATH_MAX_POINTS)
     {
         return VEHICLE_PATH_RESULT_INVALID_ARGUMENT;
     }
@@ -849,7 +849,7 @@ VehiclePathResult vehicle_path_validate_points(const PathPoint *points,
            !vehicle_float_is_finite(points[index].s) ||
            !vehicle_float_is_finite(points[index].curvature_forward))
         {
-            if(bad_index != NULL)
+            if(bad_index != nullptr)
             {
                 *bad_index = index;
             }
@@ -861,7 +861,7 @@ VehiclePathResult vehicle_path_validate_points(const PathPoint *points,
         if(!(segment_m > (PATH_MIN_POINT_DISTANCE_M * 0.25f)) ||
            segment_m > PATH_MAX_INPUT_SEGMENT_M || !(delta_s > 0.0f))
         {
-            if(bad_index != NULL)
+            if(bad_index != nullptr)
             {
                 *bad_index = index;
             }
@@ -870,7 +870,7 @@ VehiclePathResult vehicle_path_validate_points(const PathPoint *points,
         if(fabsf(points[index].yaw_body -
                  points[index - 1U].yaw_body) > PATH_MAX_YAW_JUMP_RAD)
         {
-            if(bad_index != NULL)
+            if(bad_index != nullptr)
             {
                 *bad_index = index;
             }
@@ -882,14 +882,14 @@ VehiclePathResult vehicle_path_validate_points(const PathPoint *points,
     {
         return VEHICLE_PATH_RESULT_TOO_SHORT;
     }
-    if(length_m != NULL)
+    if(length_m != nullptr)
     {
         *length_m = points[point_count - 1U].s;
     }
     return VEHICLE_PATH_RESULT_OK;
 }
 
-const PathPoint *vehicle_path_get_points(void)
+const PathPoint *vehicle_path_get_points()
 {
     return g_vehicle_path_points;
 }
@@ -898,22 +898,22 @@ const PathPoint *vehicle_path_get_point(uint32_t index)
 {
     if(index >= g_vehicle_path_state.info.point_count)
     {
-        return NULL;
+        return nullptr;
     }
     return &g_vehicle_path_points[index];
 }
 
-uint32_t vehicle_path_get_count(void)
+uint32_t vehicle_path_get_count()
 {
     return g_vehicle_path_state.info.point_count;
 }
 
-VehiclePathInfo vehicle_path_get_info(void)
+VehiclePathInfo vehicle_path_get_info()
 {
     return g_vehicle_path_state.info;
 }
 
-bool vehicle_path_is_valid(void)
+bool vehicle_path_is_valid()
 {
     return g_vehicle_path_state.info.valid;
 }

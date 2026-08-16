@@ -7,7 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef enum
+enum VehicleDiagnosticAction
 {
     VEHICLE_DIAG_NONE = 0,
     VEHICLE_DIAG_LOG_START,
@@ -28,17 +28,17 @@ typedef enum
     VEHICLE_DIAG_FAULT_RESET,
     VEHICLE_DIAG_CALIBRATION_MODE,
     VEHICLE_DIAG_IDLE
-} VehicleDiagnosticAction;
+};
 
-typedef struct
+struct VehicleDiagnosticRequest
 {
     VehicleDiagnosticAction action;
     float signed_duty;
     float target_speed_mps;
     float target_steering_rad;
-} VehicleDiagnosticRequest;
+};
 
-typedef struct
+struct VehicleDiagnostics
 {
     char command[VEHICLE_COMMAND_BUFFER_SIZE];
     uint32_t length;
@@ -46,7 +46,7 @@ typedef struct
     bool request_pending;
     char response[VEHICLE_COMMAND_BUFFER_SIZE];
     bool response_pending;
-} VehicleDiagnostics;
+};
 
 void vehicle_diagnostics_init(VehicleDiagnostics *diagnostics);
 void vehicle_diagnostics_feed_byte(VehicleDiagnostics *diagnostics, uint8_t byte);

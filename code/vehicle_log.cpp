@@ -15,9 +15,9 @@ static const char g_csv_header[] =
 static bool log_push(VehicleLog *log, const uint8_t *data, size_t size)
 {
     size_t i;
-    if((log == NULL) || (data == NULL) || (size > (size_t)(VEHICLE_LOG_BUFFER_SIZE - log->used)))
+    if((log == nullptr) || (data == nullptr) || (size > static_cast<size_t>(VEHICLE_LOG_BUFFER_SIZE - log->used)))
     {
-        if(log != NULL)
+        if(log != nullptr)
         {
             log->dropped_lines++;
         }
@@ -28,13 +28,13 @@ static bool log_push(VehicleLog *log, const uint8_t *data, size_t size)
         log->data[log->write_index] = data[i];
         log->write_index = (log->write_index + 1U) % VEHICLE_LOG_BUFFER_SIZE;
     }
-    log->used += (uint32_t)size;
+    log->used += static_cast<uint32_t>(size);
     return true;
 }
 
 void vehicle_log_init(VehicleLog *log)
 {
-    if(log != NULL)
+    if(log != nullptr)
     {
         log->read_index = 0U;
         log->write_index = 0U;
@@ -47,7 +47,7 @@ void vehicle_log_init(VehicleLog *log)
 
 void vehicle_log_set_csv_enabled(VehicleLog *log, bool enabled)
 {
-    if(log != NULL)
+    if(log != nullptr)
     {
         if(enabled && !log->csv_enabled)
         {
@@ -59,19 +59,19 @@ void vehicle_log_set_csv_enabled(VehicleLog *log, bool enabled)
 
 bool vehicle_log_is_csv_enabled(const VehicleLog *log)
 {
-    return (log != NULL) && log->csv_enabled;
+    return (log != nullptr) && log->csv_enabled;
 }
 
 bool vehicle_log_enqueue_text(VehicleLog *log, const char *text)
 {
-    return (text != NULL) && log_push(log, (const uint8_t *)text, strlen(text));
+    return (text != nullptr) && log_push(log, (const uint8_t *)text, strlen(text));
 }
 
 bool vehicle_log_enqueue_csv(VehicleLog *log, const VehicleTelemetry *t)
 {
     char line[VEHICLE_CSV_LINE_SIZE];
     int count;
-    if((log == NULL) || (t == NULL) || !log->csv_enabled)
+    if((log == nullptr) || (t == nullptr) || !log->csv_enabled)
     {
         return false;
     }
@@ -88,42 +88,42 @@ bool vehicle_log_enqueue_csv(VehicleLog *log, const VehicleTelemetry *t)
         "%.5f,%.5f,%.5f,%.6f,%.6f,%.6f,%.3f,"
         "%.5f,%.5f,%.6f,%.5f,%.5f,%.6f,%.5f,%.5f,%.5f,"
         "%lu,%.5f,%.6f,%lu\r\n",
-        (unsigned long long)t->timestamp_us, (unsigned int)t->state,
-        (long long)t->left_wheel.count, (long long)t->right_wheel.count,
-        (double)t->left_wheel.speed_mps, (double)t->right_wheel.speed_mps,
-        (unsigned int)t->steering.raw_angle,
-        (long long)t->steering.continuous_count,
-        (double)t->steering.angle_rad,
-        (double)t->imu.acceleration_mps2[0],
-        (double)t->imu.acceleration_mps2[1],
-        (double)t->imu.acceleration_mps2[2],
-        (double)t->imu.angular_rate_radps[0],
-        (double)t->imu.angular_rate_radps[1],
-        (double)t->imu.angular_rate_radps[2],
-        (double)t->imu.temperature_c,
-        (double)t->pose.x_m, (double)t->pose.y_m, (double)t->pose.yaw_rad,
-        (double)t->pose.vehicle_speed_mps,
-        (double)t->target_speed_mps, (double)t->target_steering_rad,
-        (double)t->actuators.left_motor_duty,
-        (double)t->actuators.right_motor_duty,
-        (double)t->actuators.steering_motor_duty,
-        (unsigned long)t->tracker.nearest_index,
-        (double)t->tracker.cross_track_error_m,
-        (double)t->tracker.heading_error_rad,
-        (unsigned long)t->fault_flags);
-    if((count <= 0) || ((size_t)count >= sizeof(line)))
+        static_cast<unsigned long long>(t->timestamp_us), static_cast<unsigned int>(t->state),
+        static_cast<long long>(t->left_wheel.count), static_cast<long long>(t->right_wheel.count),
+        static_cast<double>(t->left_wheel.speed_mps), static_cast<double>(t->right_wheel.speed_mps),
+        static_cast<unsigned int>(t->steering.raw_angle),
+        static_cast<long long>(t->steering.continuous_count),
+        static_cast<double>(t->steering.angle_rad),
+        static_cast<double>(t->imu.acceleration_mps2[0]),
+        static_cast<double>(t->imu.acceleration_mps2[1]),
+        static_cast<double>(t->imu.acceleration_mps2[2]),
+        static_cast<double>(t->imu.angular_rate_radps[0]),
+        static_cast<double>(t->imu.angular_rate_radps[1]),
+        static_cast<double>(t->imu.angular_rate_radps[2]),
+        static_cast<double>(t->imu.temperature_c),
+        static_cast<double>(t->pose.x_m), static_cast<double>(t->pose.y_m), static_cast<double>(t->pose.yaw_rad),
+        static_cast<double>(t->pose.vehicle_speed_mps),
+        static_cast<double>(t->target_speed_mps), static_cast<double>(t->target_steering_rad),
+        static_cast<double>(t->actuators.left_motor_duty),
+        static_cast<double>(t->actuators.right_motor_duty),
+        static_cast<double>(t->actuators.steering_motor_duty),
+        static_cast<unsigned long>(t->tracker.nearest_index),
+        static_cast<double>(t->tracker.cross_track_error_m),
+        static_cast<double>(t->tracker.heading_error_rad),
+        static_cast<unsigned long>(t->fault_flags));
+    if((count <= 0) || (static_cast<size_t>(count) >= sizeof(line)))
     {
         log->dropped_lines++;
         return false;
     }
-    return log_push(log, (const uint8_t *)line, (size_t)count);
+    return log_push(log, (const uint8_t *)line, static_cast<size_t>(count));
 }
 
 size_t vehicle_log_flush(VehicleLog *log, size_t byte_budget,
                          VehicleLogTryWriteByte writer, void *context)
 {
     size_t sent = 0U;
-    if((log == NULL) || (writer == NULL))
+    if((log == nullptr) || (writer == nullptr))
     {
         return 0U;
     }
@@ -143,5 +143,5 @@ size_t vehicle_log_flush(VehicleLog *log, size_t byte_budget,
 
 uint32_t vehicle_log_dropped_lines(const VehicleLog *log)
 {
-    return (log != NULL) ? log->dropped_lines : 0U;
+    return (log != nullptr) ? log->dropped_lines : 0U;
 }

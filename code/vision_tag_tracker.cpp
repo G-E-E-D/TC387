@@ -1,5 +1,5 @@
 /*********************************************************************************************************************
- * @file        vision_tag_tracker.c
+ * @file        vision_tag_tracker.cpp
  * @brief       TC377 单目灰度相机高对比标志视觉跟踪
  *
  * 算法：64 级 Otsu -> 黑像素积分图 -> 白静区/黑外框/固定 ID0 码字模板搜索
@@ -21,23 +21,23 @@
 #pragma tradeoff 0
 #endif
 
-#define VISION_TAG_INTEGRAL_PITCH       (VISION_TAG_MAX_WIDTH + 1U)
-#define VISION_TAG_INTEGRAL_SIZE        ((VISION_TAG_MAX_WIDTH + 1U) * (VISION_TAG_MAX_HEIGHT + 1U))
-#define VISION_TAG_HISTOGRAM_BINS       (64U)
-#define VISION_TAG_MAX_PIXELS           (VISION_TAG_MAX_WIDTH * VISION_TAG_MAX_HEIGHT)
-#define VISION_TAG_VISITED_BYTES        ((VISION_TAG_MAX_PIXELS + 7U) / 8U)
-#define VISION_TAG_QUAD_EXTREMES        (8U)
+constexpr auto VISION_TAG_INTEGRAL_PITCH = VISION_TAG_MAX_WIDTH + 1U;
+constexpr auto VISION_TAG_INTEGRAL_SIZE = (VISION_TAG_MAX_WIDTH + 1U) * (VISION_TAG_MAX_HEIGHT + 1U);
+constexpr auto VISION_TAG_HISTOGRAM_BINS = 64U;
+constexpr auto VISION_TAG_MAX_PIXELS = VISION_TAG_MAX_WIDTH * VISION_TAG_MAX_HEIGHT;
+constexpr auto VISION_TAG_VISITED_BYTES = (VISION_TAG_MAX_PIXELS + 7U) / 8U;
+constexpr auto VISION_TAG_QUAD_EXTREMES = 8U;
 
-#define VISION_TAG_MIN_RING_BLACK       (580U)
-#define VISION_TAG_MIN_QUIET_WHITE      (580U)
-#define VISION_TAG_MIN_INNER_BLACK      (120U)
-#define VISION_TAG_MAX_INNER_BLACK      (880U)
-#define VISION_TAG_MIN_CODE_MATCH       (700U)
+constexpr auto VISION_TAG_MIN_RING_BLACK = 580U;
+constexpr auto VISION_TAG_MIN_QUIET_WHITE = 580U;
+constexpr auto VISION_TAG_MIN_INNER_BLACK = 120U;
+constexpr auto VISION_TAG_MAX_INNER_BLACK = 880U;
+constexpr auto VISION_TAG_MIN_CODE_MATCH = 700U;
 
-#define VISION_TAG_Q8_ONE               (256L)
-#define VISION_TAG_Q15_MAX              (32767L)
+constexpr auto VISION_TAG_Q8_ONE = 256L;
+constexpr auto VISION_TAG_Q15_MAX = 32767L;
 
-typedef struct
+struct vision_tag_candidate_t
 {
     int16_t x;
     int16_t y;
@@ -51,9 +51,9 @@ typedef struct
     vision_tag_point_t corners[4];
     uint8_t has_corners;
     uint8_t perspective_corrected;
-} vision_tag_candidate_t;
+};
 
-typedef struct
+struct vision_tag_homography_t
 {
     int32_t a_q16;
     int32_t b_q16;
@@ -63,17 +63,17 @@ typedef struct
     int32_t f_q16;
     int32_t g_q16;
     int32_t h_q16;
-} vision_tag_homography_t;
+};
 
 /* tag36h11 ID 0 的 6 x 6 数据区；bit5 对应每行最左侧。支持四个 90 度旋转方向。 */
-typedef struct
+struct vision_frame_stats_t
 {
     uint8_t p10;
     uint8_t p50;
     uint8_t p90;
     uint16_t dark_permille;
     uint16_t saturated_permille;
-} vision_frame_stats_t;
+};
 
 static const uint8_t s_tag36h11_id0_rows[6] =
 {
@@ -159,23 +159,23 @@ static uint16_t vision_tag_isqrt_u32(uint32_t value)
         }
         bit >>= 2U;
     }
-    return (uint16_t)result;
+    return static_cast<uint16_t>(result);
 }
 
 static uint32_t vision_tag_point_distance_sq(const vision_tag_point_t *a,
                                              const vision_tag_point_t *b)
 {
-    int32_t dx = (int32_t)a->x - b->x;
-    int32_t dy = (int32_t)a->y - b->y;
-    return (uint32_t)(dx * dx + dy * dy);
+    int32_t dx = static_cast<int32_t>(a->x) - b->x;
+    int32_t dy = static_cast<int32_t>(a->y) - b->y;
+    return static_cast<uint32_t>(dx * dx + dy * dy);
 }
 
 static int32_t vision_tag_cross(const vision_tag_point_t *a,
                                 const vision_tag_point_t *b,
                                 const vision_tag_point_t *c)
 {
-    return ((int32_t)b->x - a->x) * ((int32_t)c->y - b->y)
-         - ((int32_t)b->y - a->y) * ((int32_t)c->x - b->x);
+    return (static_cast<int32_t>(b->x) - a->x) * (static_cast<int32_t>(c->y) - b->y)
+         - (static_cast<int32_t>(b->y) - a->y) * (static_cast<int32_t>(c->x) - b->x);
 }
 
 static uint8_t vision_tag_quad_is_convex(const vision_tag_point_t corners[4])
@@ -213,19 +213,19 @@ static uint32_t vision_tag_quad_area2(const vision_tag_point_t corners[4])
     {
         const vision_tag_point_t *a = &corners[index];
         const vision_tag_point_t *b = &corners[(index + 1U) & 3U];
-        area += (int32_t)a->x * b->y - (int32_t)a->y * b->x;
+        area += static_cast<int32_t>(a->x) * b->y - static_cast<int32_t>(a->y) * b->x;
     }
-    return (uint32_t)vision_tag_abs_i32(area);
+    return static_cast<uint32_t>(vision_tag_abs_i32(area));
 }
 
 static uint8_t vision_tag_visited_get(uint32_t index)
 {
-    return (uint8_t)((s_cc_visited[index >> 3U] >> (index & 7U)) & 1U);
+    return static_cast<uint8_t>((s_cc_visited[index >> 3U] >> (index & 7U)) & 1U);
 }
 
 static void vision_tag_visited_set(uint32_t index)
 {
-    s_cc_visited[index >> 3U] |= (uint8_t)(1U << (index & 7U));
+    s_cc_visited[index >> 3U] |= static_cast<uint8_t>(1U << (index & 7U));
 }
 
 #if defined(__GNUC__) && !defined(__TASKING__)
@@ -258,19 +258,22 @@ static uint8_t vision_tag_histogram_threshold(const uint8_t *image,
     uint16_t y;
     uint16_t bin;
 
-    memset(histogram, 0, sizeof(histogram));
-    total = (uint32_t)(x1 - x0) * (uint32_t)(y1 - y0);
+    for(auto &value : histogram)
+    {
+        value = 0U;
+    }
+    total = static_cast<uint32_t>(x1 - x0) * static_cast<uint32_t>(y1 - y0);
     total_sum = 0U;
     min_value = 255U;
     max_value = 0U;
 
     for (y = y0; y < y1; ++y)
     {
-        const uint8_t *row = image + (uint32_t)y * stride;
+        const uint8_t *row = image + static_cast<uint32_t>(y) * stride;
         for (x = x0; x < x1; ++x)
         {
             uint8_t value = row[x];
-            uint8_t index = (uint8_t)(value >> 2);
+            uint8_t index = static_cast<uint8_t>(value >> 2);
             ++histogram[index];
             if (value < min_value)
             {
@@ -283,7 +286,7 @@ static uint8_t vision_tag_histogram_threshold(const uint8_t *image,
         }
     }
 
-    if (stats != NULL)
+    if (stats != nullptr)
     {
         uint32_t cumulative = 0U;
         uint32_t target10 = (total + 9U) / 10U;
@@ -300,33 +303,33 @@ static uint8_t vision_tag_histogram_threshold(const uint8_t *image,
             cumulative += histogram[bin];
             if ((found10 == 0U) && (cumulative >= target10))
             {
-                stats->p10 = (uint8_t)((bin << 2) + 2U);
+                stats->p10 = static_cast<uint8_t>((bin << 2) + 2U);
                 found10 = 1U;
             }
             if ((found50 == 0U) && (cumulative >= target50))
             {
-                stats->p50 = (uint8_t)((bin << 2) + 2U);
+                stats->p50 = static_cast<uint8_t>((bin << 2) + 2U);
                 found50 = 1U;
             }
             if (cumulative >= target90)
             {
-                stats->p90 = (uint8_t)((bin << 2) + 2U);
+                stats->p90 = static_cast<uint8_t>((bin << 2) + 2U);
                 break;
             }
         }
-        stats->dark_permille = (uint16_t)(((histogram[0] + histogram[1]
+        stats->dark_permille = static_cast<uint16_t>(((histogram[0] + histogram[1]
                                            + histogram[2] + histogram[3]) * 1000U) / total);
-        stats->saturated_permille = (uint16_t)(((histogram[62] + histogram[63]) * 1000U) / total);
+        stats->saturated_permille = static_cast<uint16_t>(((histogram[62] + histogram[63]) * 1000U) / total);
     }
 
-    if ((uint16_t)((uint16_t)max_value - (uint16_t)min_value) < (uint16_t)12U)
+    if (static_cast<uint16_t>(static_cast<uint16_t>(max_value) - static_cast<uint16_t>(min_value)) < static_cast<uint16_t>(12U))
     {
-        return (uint8_t)(((uint16_t)max_value + (uint16_t)min_value) / 2U);
+        return static_cast<uint8_t>((static_cast<uint16_t>(max_value) + static_cast<uint16_t>(min_value)) / 2U);
     }
 
     for (bin = 0U; bin < VISION_TAG_HISTOGRAM_BINS; ++bin)
     {
-        total_sum += (uint32_t)bin * histogram[bin];
+        total_sum += static_cast<uint32_t>(bin) * histogram[bin];
     }
 
     background_count = 0U;
@@ -343,7 +346,7 @@ static uint8_t vision_tag_histogram_threshold(const uint8_t *image,
         uint64_t score;
 
         background_count += histogram[bin];
-        background_sum += (uint32_t)bin * histogram[bin];
+        background_sum += static_cast<uint32_t>(bin) * histogram[bin];
         if (background_count == 0U)
         {
             continue;
@@ -361,19 +364,19 @@ static uint8_t vision_tag_histogram_threshold(const uint8_t *image,
                         ? (mean_foreground - mean_background)
                         : (mean_background - mean_foreground);
 
-        score = (uint64_t)background_count * (uint64_t)foreground_count;
-        score *= (uint64_t)mean_difference * (uint64_t)mean_difference;
+        score = static_cast<uint64_t>(background_count) * static_cast<uint64_t>(foreground_count);
+        score *= static_cast<uint64_t>(mean_difference) * static_cast<uint64_t>(mean_difference);
         if (score > best_score)
         {
             best_score = score;
-            best_bin = (uint8_t)bin;
+            best_bin = static_cast<uint8_t>(bin);
         }
     }
 
     {
-        uint16_t threshold = (uint16_t)(((uint16_t)best_bin << 2) + 2U);
-        threshold = (uint16_t)vision_tag_clamp_i32((int32_t)threshold, 24, 232);
-        return (uint8_t)threshold;
+        uint16_t threshold = static_cast<uint16_t>((static_cast<uint16_t>(best_bin) << 2) + 2U);
+        threshold = static_cast<uint16_t>(vision_tag_clamp_i32(static_cast<int32_t>(threshold), 24, 232));
+        return static_cast<uint8_t>(threshold);
     }
 }
 
@@ -387,7 +390,7 @@ static uint8_t vision_tag_otsu_threshold(const uint8_t *image,
     uint8_t threshold = vision_tag_histogram_threshold(image, stride, 0U, 0U,
                                                        width, height, stats);
 
-    if (global_threshold != NULL)
+    if (global_threshold != nullptr)
     {
         *global_threshold = threshold;
     }
@@ -397,13 +400,13 @@ static uint8_t vision_tag_otsu_threshold(const uint8_t *image,
         int32_t center_x = s_center_x_q8 / VISION_TAG_Q8_ONE;
         int32_t center_y = s_center_y_q8 / VISION_TAG_Q8_ONE;
         int32_t size = s_size_q8 / VISION_TAG_Q8_ONE;
-        int32_t half = (int32_t)vision_tag_max_u16(24U, (uint16_t)(size * 2));
-        uint16_t rx0 = (uint16_t)vision_tag_clamp_i32(center_x - half, 0, width - 1);
-        uint16_t ry0 = (uint16_t)vision_tag_clamp_i32(center_y - half, 0, height - 1);
-        uint16_t rx1 = (uint16_t)vision_tag_clamp_i32(center_x + half, rx0 + 1, width);
-        uint16_t ry1 = (uint16_t)vision_tag_clamp_i32(center_y + half, ry0 + 1, height);
+        int32_t half = static_cast<int32_t>(vision_tag_max_u16(24U, static_cast<uint16_t>(size * 2)));
+        uint16_t rx0 = static_cast<uint16_t>(vision_tag_clamp_i32(center_x - half, 0, width - 1));
+        uint16_t ry0 = static_cast<uint16_t>(vision_tag_clamp_i32(center_y - half, 0, height - 1));
+        uint16_t rx1 = static_cast<uint16_t>(vision_tag_clamp_i32(center_x + half, rx0 + 1, width));
+        uint16_t ry1 = static_cast<uint16_t>(vision_tag_clamp_i32(center_y + half, ry0 + 1, height));
 
-        threshold = vision_tag_histogram_threshold(image, stride, rx0, ry0, rx1, ry1, NULL);
+        threshold = vision_tag_histogram_threshold(image, stride, rx0, ry0, rx1, ry1, nullptr);
     }
 
     return threshold;
@@ -417,15 +420,18 @@ static void vision_tag_build_integral(const uint8_t *image,
 {
     uint16_t x;
     uint16_t y;
-    uint16_t pitch = (uint16_t)VISION_TAG_INTEGRAL_PITCH;
+    uint16_t pitch = static_cast<uint16_t>(VISION_TAG_INTEGRAL_PITCH);
 
-    memset(s_integral, 0, (size_t)(width + 1U) * sizeof(s_integral[0]));
+    for(uint16_t index = 0U; index <= width; ++index)
+    {
+        s_integral[index] = 0U;
+    }
     for (y = 0U; y < height; ++y)
     {
         uint16_t row_black = 0U;
-        uint32_t current_offset = (uint32_t)(y + 1U) * pitch;
-        uint32_t previous_offset = (uint32_t)y * pitch;
-        const uint8_t *row = image + (uint32_t)y * stride;
+        uint32_t current_offset = static_cast<uint32_t>(y + 1U) * pitch;
+        uint32_t previous_offset = static_cast<uint32_t>(y) * pitch;
+        const uint8_t *row = image + static_cast<uint32_t>(y) * stride;
 
         s_integral[current_offset] = 0U;
         for (x = 0U; x < width; ++x)
@@ -435,7 +441,7 @@ static void vision_tag_build_integral(const uint8_t *image,
                 ++row_black;
             }
             s_integral[current_offset + x + 1U] =
-                (uint16_t)(s_integral[previous_offset + x + 1U] + row_black);
+                static_cast<uint16_t>(s_integral[previous_offset + x + 1U] + row_black);
         }
     }
 }
@@ -444,11 +450,11 @@ static void vision_tag_build_integral(const uint8_t *image,
 static uint16_t vision_tag_rect_black(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 {
     uint32_t pitch = VISION_TAG_INTEGRAL_PITCH;
-    uint32_t a = s_integral[(uint32_t)y0 * pitch + (uint16_t)x0];
-    uint32_t b = s_integral[(uint32_t)y0 * pitch + (uint16_t)x1];
-    uint32_t c = s_integral[(uint32_t)y1 * pitch + (uint16_t)x0];
-    uint32_t d = s_integral[(uint32_t)y1 * pitch + (uint16_t)x1];
-    return (uint16_t)(d + a - b - c);
+    uint32_t a = s_integral[static_cast<uint32_t>(y0) * pitch + static_cast<uint16_t>(x0)];
+    uint32_t b = s_integral[static_cast<uint32_t>(y0) * pitch + static_cast<uint16_t>(x1)];
+    uint32_t c = s_integral[static_cast<uint32_t>(y1) * pitch + static_cast<uint16_t>(x0)];
+    uint32_t d = s_integral[static_cast<uint32_t>(y1) * pitch + static_cast<uint16_t>(x1)];
+    return static_cast<uint16_t>(d + a - b - c);
 }
 
 static uint8_t vision_tag_black_at_least(int16_t x0,
@@ -457,26 +463,26 @@ static uint8_t vision_tag_black_at_least(int16_t x0,
                                          int16_t y1,
                                          uint16_t minimum_permille)
 {
-    uint32_t area = (uint32_t)(x1 - x0) * (uint32_t)(y1 - y0);
+    uint32_t area = static_cast<uint32_t>(x1 - x0) * static_cast<uint32_t>(y1 - y0);
     uint32_t black = vision_tag_rect_black(x0, y0, x1, y1);
-    return (uint8_t)(((black * VISION_TAG_SCORE_MAX) >= (area * minimum_permille)) ? 1U : 0U);
+    return static_cast<uint8_t>(((black * VISION_TAG_SCORE_MAX) >= (area * minimum_permille)) ? 1U : 0U);
 }
 
 static uint16_t vision_tag_black_ratio(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 {
-    uint32_t area = (uint32_t)(x1 - x0) * (uint32_t)(y1 - y0);
+    uint32_t area = static_cast<uint32_t>(x1 - x0) * static_cast<uint32_t>(y1 - y0);
     uint32_t black;
     if (area == 0U)
     {
         return 0U;
     }
     black = vision_tag_rect_black(x0, y0, x1, y1);
-    return (uint16_t)((black * VISION_TAG_SCORE_MAX) / area);
+    return static_cast<uint16_t>((black * VISION_TAG_SCORE_MAX) / area);
 }
 
 static uint16_t vision_tag_white_ratio(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 {
-    return (uint16_t)(VISION_TAG_SCORE_MAX - vision_tag_black_ratio(x0, y0, x1, y1));
+    return static_cast<uint16_t>(VISION_TAG_SCORE_MAX - vision_tag_black_ratio(x0, y0, x1, y1));
 }
 
 static uint8_t vision_tag_expected_bit(uint8_t row, uint8_t column, uint8_t rotation)
@@ -487,16 +493,16 @@ static uint8_t vision_tag_expected_bit(uint8_t row, uint8_t column, uint8_t rota
     switch (rotation & 3U)
     {
         case 1U:
-            source_row = (uint8_t)(5U - column);
+            source_row = static_cast<uint8_t>(5U - column);
             source_column = row;
             break;
         case 2U:
-            source_row = (uint8_t)(5U - row);
-            source_column = (uint8_t)(5U - column);
+            source_row = static_cast<uint8_t>(5U - row);
+            source_column = static_cast<uint8_t>(5U - column);
             break;
         case 3U:
             source_row = column;
-            source_column = (uint8_t)(5U - row);
+            source_column = static_cast<uint8_t>(5U - row);
             break;
         default:
             source_row = row;
@@ -504,7 +510,7 @@ static uint8_t vision_tag_expected_bit(uint8_t row, uint8_t column, uint8_t rota
             break;
     }
 
-    return (uint8_t)((s_tag36h11_id0_rows[source_row] >> (5U - source_column)) & 1U);
+    return static_cast<uint8_t>((s_tag36h11_id0_rows[source_row] >> (5U - source_column)) & 1U);
 }
 
 static uint16_t vision_tag_code_match(int16_t x, int16_t y, int16_t width, int16_t height)
@@ -520,13 +526,13 @@ static uint16_t vision_tag_code_match(int16_t x, int16_t y, int16_t width, int16
         for (row = 0U; row < 6U; ++row)
         {
             uint8_t column;
-            int16_t cell_y0 = (int16_t)(y + ((int32_t)height * ((int32_t)row + 1)) / 8L);
-            int16_t cell_y1 = (int16_t)(y + ((int32_t)height * ((int32_t)row + 2)) / 8L);
+            int16_t cell_y0 = static_cast<int16_t>(y + (static_cast<int32_t>(height) * (static_cast<int32_t>(row) + 1)) / 8L);
+            int16_t cell_y1 = static_cast<int16_t>(y + (static_cast<int32_t>(height) * (static_cast<int32_t>(row) + 2)) / 8L);
 
             for (column = 0U; column < 6U; ++column)
             {
-                int16_t cell_x0 = (int16_t)(x + ((int32_t)width * ((int32_t)column + 1)) / 8L);
-                int16_t cell_x1 = (int16_t)(x + ((int32_t)width * ((int32_t)column + 2)) / 8L);
+                int16_t cell_x0 = static_cast<int16_t>(x + (static_cast<int32_t>(width) * (static_cast<int32_t>(column) + 1)) / 8L);
+                int16_t cell_x1 = static_cast<int16_t>(x + (static_cast<int32_t>(width) * (static_cast<int32_t>(column) + 2)) / 8L);
                 uint16_t black_ratio;
 
                 /* 大目标只取单元格中央，减小候选框 1 px 偏差和透视边缘的影响。 */
@@ -548,13 +554,13 @@ static uint16_t vision_tag_code_match(int16_t x, int16_t y, int16_t width, int16
                 }
                 else
                 {
-                    score_sum += (uint16_t)(VISION_TAG_SCORE_MAX - black_ratio);
+                    score_sum += static_cast<uint16_t>(VISION_TAG_SCORE_MAX - black_ratio);
                 }
             }
         }
 
         {
-            uint16_t rotation_score = (uint16_t)(score_sum / 36U);
+            uint16_t rotation_score = static_cast<uint16_t>(score_sum / 36U);
             if (rotation_score > best_score)
             {
                 best_score = rotation_score;
@@ -568,43 +574,43 @@ static uint16_t vision_tag_code_match(int16_t x, int16_t y, int16_t width, int16
 static uint8_t vision_tag_homography_init(vision_tag_homography_t *homography,
                                           const vision_tag_point_t corners[4])
 {
-    int32_t dx1 = (int32_t)corners[1].x - corners[2].x;
-    int32_t dx2 = (int32_t)corners[3].x - corners[2].x;
-    int32_t dx3 = (int32_t)corners[0].x - corners[1].x
+    int32_t dx1 = static_cast<int32_t>(corners[1].x) - corners[2].x;
+    int32_t dx2 = static_cast<int32_t>(corners[3].x) - corners[2].x;
+    int32_t dx3 = static_cast<int32_t>(corners[0].x) - corners[1].x
                 + corners[2].x - corners[3].x;
-    int32_t dy1 = (int32_t)corners[1].y - corners[2].y;
-    int32_t dy2 = (int32_t)corners[3].y - corners[2].y;
-    int32_t dy3 = (int32_t)corners[0].y - corners[1].y
+    int32_t dy1 = static_cast<int32_t>(corners[1].y) - corners[2].y;
+    int32_t dy2 = static_cast<int32_t>(corners[3].y) - corners[2].y;
+    int32_t dy3 = static_cast<int32_t>(corners[0].y) - corners[1].y
                 + corners[2].y - corners[3].y;
     int32_t denominator = dx1 * dy2 - dx2 * dy1;
     int64_t g_q16;
     int64_t h_q16;
 
-    if ((homography == NULL) || (vision_tag_abs_i32(denominator) < 4))
+    if ((homography == nullptr) || (vision_tag_abs_i32(denominator) < 4))
     {
         return 0U;
     }
 
-    g_q16 = (((int64_t)dx3 * dy2 - (int64_t)dx2 * dy3) << 16) / denominator;
-    h_q16 = (((int64_t)dx1 * dy3 - (int64_t)dx3 * dy1) << 16) / denominator;
+    g_q16 = ((static_cast<int64_t>(dx3) * dy2 - static_cast<int64_t>(dx2) * dy3) << 16) / denominator;
+    h_q16 = ((static_cast<int64_t>(dx1) * dy3 - static_cast<int64_t>(dx3) * dy1) << 16) / denominator;
     if ((g_q16 < -262144L) || (g_q16 > 262144L)
         || (h_q16 < -262144L) || (h_q16 > 262144L))
     {
         return 0U;
     }
 
-    homography->g_q16 = (int32_t)g_q16;
-    homography->h_q16 = (int32_t)h_q16;
-    homography->a_q16 = ((int32_t)corners[1].x - corners[0].x) * 65536L
+    homography->g_q16 = static_cast<int32_t>(g_q16);
+    homography->h_q16 = static_cast<int32_t>(h_q16);
+    homography->a_q16 = (static_cast<int32_t>(corners[1].x) - corners[0].x) * 65536L
                       + homography->g_q16 * corners[1].x;
-    homography->b_q16 = ((int32_t)corners[3].x - corners[0].x) * 65536L
+    homography->b_q16 = (static_cast<int32_t>(corners[3].x) - corners[0].x) * 65536L
                       + homography->h_q16 * corners[3].x;
-    homography->c_q16 = (int32_t)corners[0].x * 65536L;
-    homography->d_q16 = ((int32_t)corners[1].y - corners[0].y) * 65536L
+    homography->c_q16 = static_cast<int32_t>(corners[0].x) * 65536L;
+    homography->d_q16 = (static_cast<int32_t>(corners[1].y) - corners[0].y) * 65536L
                       + homography->g_q16 * corners[1].y;
-    homography->e_q16 = ((int32_t)corners[3].y - corners[0].y) * 65536L
+    homography->e_q16 = (static_cast<int32_t>(corners[3].y) - corners[0].y) * 65536L
                       + homography->h_q16 * corners[3].y;
-    homography->f_q16 = (int32_t)corners[0].y * 65536L;
+    homography->f_q16 = static_cast<int32_t>(corners[0].y) * 65536L;
     return 1U;
 }
 
@@ -621,23 +627,23 @@ static uint8_t vision_tag_homography_point(const vision_tag_homography_t *homogr
     int64_t y_q16;
 
     denominator_q16 = 65536L
-                    + (((int64_t)homography->g_q16 * u_q16) >> 16)
-                    + (((int64_t)homography->h_q16 * v_q16) >> 16);
+                    + ((static_cast<int64_t>(homography->g_q16) * u_q16) >> 16)
+                    + ((static_cast<int64_t>(homography->h_q16) * v_q16) >> 16);
     if ((denominator_q16 > -1024L) && (denominator_q16 < 1024L))
     {
         return 0U;
     }
 
-    x_numerator_q16 = (((int64_t)homography->a_q16 * u_q16) >> 16)
-                    + (((int64_t)homography->b_q16 * v_q16) >> 16)
+    x_numerator_q16 = ((static_cast<int64_t>(homography->a_q16) * u_q16) >> 16)
+                    + ((static_cast<int64_t>(homography->b_q16) * v_q16) >> 16)
                     + homography->c_q16;
-    y_numerator_q16 = (((int64_t)homography->d_q16 * u_q16) >> 16)
-                    + (((int64_t)homography->e_q16 * v_q16) >> 16)
+    y_numerator_q16 = ((static_cast<int64_t>(homography->d_q16) * u_q16) >> 16)
+                    + ((static_cast<int64_t>(homography->e_q16) * v_q16) >> 16)
                     + homography->f_q16;
     x_q16 = (x_numerator_q16 << 16) / denominator_q16;
     y_q16 = (y_numerator_q16 << 16) / denominator_q16;
-    *x = (int16_t)((x_q16 + 32768L) >> 16);
-    *y = (int16_t)((y_q16 + 32768L) >> 16);
+    *x = static_cast<int16_t>((x_q16 + 32768L) >> 16);
+    *y = static_cast<int16_t>((y_q16 + 32768L) >> 16);
     return 1U;
 }
 
@@ -654,11 +660,11 @@ static uint8_t vision_tag_homography_sample(const vision_tag_homography_t *homog
     int16_t y = 0;
 
     if ((vision_tag_homography_point(homography, u_q16, v_q16, &x, &y) == 0U)
-        || (x < 0) || (y < 0) || (x >= (int16_t)width) || (y >= (int16_t)height))
+        || (x < 0) || (y < 0) || (x >= static_cast<int16_t>(width)) || (y >= static_cast<int16_t>(height)))
     {
         return 0U;
     }
-    *value = image[(uint32_t)y * stride + (uint16_t)x];
+    *value = image[static_cast<uint32_t>(y) * stride + static_cast<uint16_t>(x)];
     return 1U;
 }
 
@@ -682,8 +688,8 @@ static uint16_t vision_tag_quad_cell_black(const vision_tag_homography_t *homogr
         for (sample_x = 0U; sample_x < 2U; ++sample_x)
         {
             uint8_t value = 0U;
-            int32_t u_q16 = (int32_t)((uint16_t)cell_x * 8U + offsets[sample_x]) * 1024L;
-            int32_t v_q16 = (int32_t)((uint16_t)cell_y * 8U + offsets[sample_y]) * 1024L;
+            int32_t u_q16 = static_cast<int32_t>(static_cast<uint16_t>(cell_x) * 8U + offsets[sample_x]) * 1024L;
+            int32_t v_q16 = static_cast<int32_t>(static_cast<uint16_t>(cell_y) * 8U + offsets[sample_y]) * 1024L;
             if (vision_tag_homography_sample(homography, image, width, height, stride,
                                              u_q16, v_q16, &value) != 0U)
             {
@@ -695,7 +701,7 @@ static uint16_t vision_tag_quad_cell_black(const vision_tag_homography_t *homogr
             }
         }
     }
-    return (valid != 0U) ? (uint16_t)((black * VISION_TAG_SCORE_MAX) / valid) : 0U;
+    return (valid != 0U) ? static_cast<uint16_t>((black * VISION_TAG_SCORE_MAX) / valid) : 0U;
 }
 
 static uint16_t vision_tag_score_quad(const uint8_t *image,
@@ -742,8 +748,8 @@ static uint16_t vision_tag_score_quad(const uint8_t *image,
             if ((row == 0U) || (row == 7U) || (column == 0U) || (column == 7U))
             {
                 if (vision_tag_homography_sample(&homography, image, width, height, stride,
-                                                 (int32_t)(2U * column + 1U) * 4096L,
-                                                 (int32_t)(2U * row + 1U) * 4096L,
+                                                 static_cast<int32_t>(2U * column + 1U) * 4096L,
+                                                 static_cast<int32_t>(2U * row + 1U) * 4096L,
                                                  &value) != 0U)
                 {
                     ring_gray_sum += value;
@@ -761,15 +767,15 @@ static uint16_t vision_tag_score_quad(const uint8_t *image,
         right += cell_black[row][7];
     }
 
-    ring_score = vision_tag_min_u16((uint16_t)(top / 8U), (uint16_t)(bottom / 8U));
-    ring_score = vision_tag_min_u16(ring_score, (uint16_t)(left / 8U));
-    ring_score = vision_tag_min_u16(ring_score, (uint16_t)(right / 8U));
+    ring_score = vision_tag_min_u16(static_cast<uint16_t>(top / 8U), static_cast<uint16_t>(bottom / 8U));
+    ring_score = vision_tag_min_u16(ring_score, static_cast<uint16_t>(left / 8U));
+    ring_score = vision_tag_min_u16(ring_score, static_cast<uint16_t>(right / 8U));
     if (ring_score < VISION_TAG_MIN_RING_BLACK)
     {
         return 0U;
     }
 
-    inner_black = (uint16_t)(inner_sum / 36U);
+    inner_black = static_cast<uint16_t>(inner_sum / 36U);
     if ((inner_black < VISION_TAG_MIN_INNER_BLACK) || (inner_black > VISION_TAG_MAX_INNER_BLACK))
     {
         return 0U;
@@ -790,9 +796,9 @@ static uint16_t vision_tag_score_quad(const uint8_t *image,
                               ? black : (VISION_TAG_SCORE_MAX - black);
                 }
             }
-            if ((uint16_t)(code_sum / 36U) > best_code)
+            if (static_cast<uint16_t>(code_sum / 36U) > best_code)
             {
-                best_code = (uint16_t)(code_sum / 36U);
+                best_code = static_cast<uint16_t>(code_sum / 36U);
             }
         }
     }
@@ -804,7 +810,7 @@ static uint16_t vision_tag_score_quad(const uint8_t *image,
     for (row = 0U; row < 8U; ++row)
     {
         uint8_t value = 0U;
-        int32_t center_q16 = (int32_t)(2U * row + 1U) * 4096L;
+        int32_t center_q16 = static_cast<int32_t>(2U * row + 1U) * 4096L;
         const int32_t outside_low_q16 = -4096L;
         const int32_t outside_high_q16 = 69632L;
         if (vision_tag_homography_sample(&homography, image, width, height, stride,
@@ -833,30 +839,30 @@ static uint16_t vision_tag_score_quad(const uint8_t *image,
         }
     }
     quiet_score = (quiet_count != 0U)
-                ? (uint16_t)(((uint32_t)quiet_white * VISION_TAG_SCORE_MAX) / quiet_count)
+                ? static_cast<uint16_t>((static_cast<uint32_t>(quiet_white) * VISION_TAG_SCORE_MAX) / quiet_count)
                 : VISION_TAG_SCORE_MAX;
     if (quiet_score < VISION_TAG_MIN_QUIET_WHITE)
     {
         return 0U;
     }
 
-    if (contrast != NULL)
+    if (contrast != nullptr)
     {
         uint32_t ring_mean = (ring_count != 0U) ? ring_gray_sum / ring_count : 0U;
         uint32_t quiet_mean = (quiet_count != 0U) ? quiet_gray_sum / quiet_count : 255U;
-        *contrast = (uint16_t)((quiet_mean > ring_mean) ? (quiet_mean - ring_mean) : 0U);
+        *contrast = static_cast<uint16_t>((quiet_mean > ring_mean) ? (quiet_mean - ring_mean) : 0U);
     }
 
-    inner_mix = (inner_black >= 500U) ? (uint16_t)(1500U - inner_black)
-                                      : (uint16_t)(500U + inner_black);
+    inner_mix = (inner_black >= 500U) ? static_cast<uint16_t>(1500U - inner_black)
+                                      : static_cast<uint16_t>(500U + inner_black);
     if (inner_mix > VISION_TAG_SCORE_MAX)
     {
         inner_mix = VISION_TAG_SCORE_MAX;
     }
-    return (uint16_t)(((uint32_t)ring_score * 45U
-                     + (uint32_t)quiet_score * 25U
-                     + (uint32_t)best_code * 25U
-                     + (uint32_t)inner_mix * 5U) / 100U);
+    return static_cast<uint16_t>((static_cast<uint32_t>(ring_score) * 45U
+                     + static_cast<uint32_t>(quiet_score) * 25U
+                     + static_cast<uint32_t>(best_code) * 25U
+                     + static_cast<uint32_t>(inner_mix) * 5U) / 100U);
 }
 
 static uint16_t vision_tag_score_candidate(int16_t x,
@@ -866,8 +872,8 @@ static uint16_t vision_tag_score_candidate(int16_t x,
                                            uint16_t image_width,
                                            uint16_t image_height)
 {
-    int16_t border_x = (int16_t)(width / 8);
-    int16_t border_y = (int16_t)(height / 8);
+    int16_t border_x = static_cast<int16_t>(width / 8);
+    int16_t border_y = static_cast<int16_t>(height / 8);
     int16_t quiet_x = border_x;
     int16_t quiet_y = border_y;
     int16_t quiet_x0;
@@ -896,46 +902,46 @@ static uint16_t vision_tag_score_candidate(int16_t x,
     /* The full black frame must be visible, but the white quiet zone may be
      * cropped at an image edge when the tag is still usable for centering. */
     if ((x < 0) || (y < 0)
-        || ((int32_t)x + width > image_width)
-        || ((int32_t)y + height > image_height)
+        || (static_cast<int32_t>(x) + width > image_width)
+        || (static_cast<int32_t>(y) + height > image_height)
         || (width <= (border_x * 2 + 2))
         || (height <= (border_y * 2 + 2)))
     {
         return 0U;
     }
 
-    quiet_x0 = (x >= quiet_x) ? (int16_t)(x - quiet_x) : 0;
-    quiet_y0 = (y >= quiet_y) ? (int16_t)(y - quiet_y) : 0;
-    quiet_x1 = (((int32_t)x + width + quiet_x) <= image_width)
-             ? (int16_t)(x + width + quiet_x) : (int16_t)image_width;
-    quiet_y1 = (((int32_t)y + height + quiet_y) <= image_height)
-             ? (int16_t)(y + height + quiet_y) : (int16_t)image_height;
+    quiet_x0 = (x >= quiet_x) ? static_cast<int16_t>(x - quiet_x) : 0;
+    quiet_y0 = (y >= quiet_y) ? static_cast<int16_t>(y - quiet_y) : 0;
+    quiet_x1 = ((static_cast<int32_t>(x) + width + quiet_x) <= image_width)
+             ? static_cast<int16_t>(x + width + quiet_x) : static_cast<int16_t>(image_width);
+    quiet_y1 = ((static_cast<int32_t>(y) + height + quiet_y) <= image_height)
+             ? static_cast<int16_t>(y + height + quiet_y) : static_cast<int16_t>(image_height);
 
     /* Reject the overwhelming majority of windows without integer divisions. */
-    if ((vision_tag_black_at_least(x, y, (int16_t)(x + width),
-                                   (int16_t)(y + border_y), VISION_TAG_MIN_RING_BLACK) == 0U)
-        || (vision_tag_black_at_least(x, (int16_t)(y + height - border_y),
-                                      (int16_t)(x + width), (int16_t)(y + height),
+    if ((vision_tag_black_at_least(x, y, static_cast<int16_t>(x + width),
+                                   static_cast<int16_t>(y + border_y), VISION_TAG_MIN_RING_BLACK) == 0U)
+        || (vision_tag_black_at_least(x, static_cast<int16_t>(y + height - border_y),
+                                      static_cast<int16_t>(x + width), static_cast<int16_t>(y + height),
                                       VISION_TAG_MIN_RING_BLACK) == 0U)
-        || (vision_tag_black_at_least(x, (int16_t)(y + border_y),
-                                      (int16_t)(x + border_x), (int16_t)(y + height - border_y),
+        || (vision_tag_black_at_least(x, static_cast<int16_t>(y + border_y),
+                                      static_cast<int16_t>(x + border_x), static_cast<int16_t>(y + height - border_y),
                                       VISION_TAG_MIN_RING_BLACK) == 0U)
-        || (vision_tag_black_at_least((int16_t)(x + width - border_x),
-                                      (int16_t)(y + border_y), (int16_t)(x + width),
-                                      (int16_t)(y + height - border_y), VISION_TAG_MIN_RING_BLACK) == 0U))
+        || (vision_tag_black_at_least(static_cast<int16_t>(x + width - border_x),
+                                      static_cast<int16_t>(y + border_y), static_cast<int16_t>(x + width),
+                                      static_cast<int16_t>(y + height - border_y), VISION_TAG_MIN_RING_BLACK) == 0U))
     {
         return 0U;
     }
 
-    ring_score = vision_tag_black_ratio(x, y, (int16_t)(x + width), (int16_t)(y + border_y));
-    value = vision_tag_black_ratio(x, (int16_t)(y + height - border_y),
-                                   (int16_t)(x + width), (int16_t)(y + height));
+    ring_score = vision_tag_black_ratio(x, y, static_cast<int16_t>(x + width), static_cast<int16_t>(y + border_y));
+    value = vision_tag_black_ratio(x, static_cast<int16_t>(y + height - border_y),
+                                   static_cast<int16_t>(x + width), static_cast<int16_t>(y + height));
     ring_score = vision_tag_min_u16(ring_score, value);
-    value = vision_tag_black_ratio(x, (int16_t)(y + border_y),
-                                   (int16_t)(x + border_x), (int16_t)(y + height - border_y));
+    value = vision_tag_black_ratio(x, static_cast<int16_t>(y + border_y),
+                                   static_cast<int16_t>(x + border_x), static_cast<int16_t>(y + height - border_y));
     ring_score = vision_tag_min_u16(ring_score, value);
-    value = vision_tag_black_ratio((int16_t)(x + width - border_x), (int16_t)(y + border_y),
-                                   (int16_t)(x + width), (int16_t)(y + height - border_y));
+    value = vision_tag_black_ratio(static_cast<int16_t>(x + width - border_x), static_cast<int16_t>(y + border_y),
+                                   static_cast<int16_t>(x + width), static_cast<int16_t>(y + height - border_y));
     ring_score = vision_tag_min_u16(ring_score, value);
 
     if (ring_score < VISION_TAG_MIN_RING_BLACK)
@@ -949,22 +955,22 @@ static uint16_t vision_tag_score_candidate(int16_t x,
         value = vision_tag_white_ratio(quiet_x0, quiet_y0, quiet_x1, y);
         quiet_score = vision_tag_min_u16(quiet_score, value);
     }
-    if (((int32_t)y + height + quiet_y) <= image_height)
+    if ((static_cast<int32_t>(y) + height + quiet_y) <= image_height)
     {
-        value = vision_tag_white_ratio(quiet_x0, (int16_t)(y + height),
+        value = vision_tag_white_ratio(quiet_x0, static_cast<int16_t>(y + height),
                                        quiet_x1, quiet_y1);
         quiet_score = vision_tag_min_u16(quiet_score, value);
     }
     if (x >= quiet_x)
     {
         value = vision_tag_white_ratio(quiet_x0, y,
-                                       x, (int16_t)(y + height));
+                                       x, static_cast<int16_t>(y + height));
         quiet_score = vision_tag_min_u16(quiet_score, value);
     }
-    if (((int32_t)x + width + quiet_x) <= image_width)
+    if ((static_cast<int32_t>(x) + width + quiet_x) <= image_width)
     {
-        value = vision_tag_white_ratio((int16_t)(x + width), y,
-                                       quiet_x1, (int16_t)(y + height));
+        value = vision_tag_white_ratio(static_cast<int16_t>(x + width), y,
+                                       quiet_x1, static_cast<int16_t>(y + height));
         quiet_score = vision_tag_min_u16(quiet_score, value);
     }
 
@@ -973,9 +979,9 @@ static uint16_t vision_tag_score_candidate(int16_t x,
         return 0U;
     }
 
-    inner_black = vision_tag_black_ratio((int16_t)(x + border_x), (int16_t)(y + border_y),
-                                         (int16_t)(x + width - border_x),
-                                         (int16_t)(y + height - border_y));
+    inner_black = vision_tag_black_ratio(static_cast<int16_t>(x + border_x), static_cast<int16_t>(y + border_y),
+                                         static_cast<int16_t>(x + width - border_x),
+                                         static_cast<int16_t>(y + height - border_y));
     if ((inner_black < VISION_TAG_MIN_INNER_BLACK) || (inner_black > VISION_TAG_MAX_INNER_BLACK))
     {
         return 0U;
@@ -991,18 +997,18 @@ static uint16_t vision_tag_score_candidate(int16_t x,
     }
 
     /* 内部接近均衡黑白时得分较高，但该项权重较低，允许不同 ID 的码字密度差异。 */
-    inner_mix = (inner_black >= 500U) ? (uint16_t)(1500U - inner_black)
-                                      : (uint16_t)(500U + inner_black);
+    inner_mix = (inner_black >= 500U) ? static_cast<uint16_t>(1500U - inner_black)
+                                      : static_cast<uint16_t>(500U + inner_black);
     if (inner_mix > VISION_TAG_SCORE_MAX)
     {
         inner_mix = VISION_TAG_SCORE_MAX;
     }
 
-    weighted = (uint32_t)ring_score * 45U
-             + (uint32_t)quiet_score * 25U
-             + (uint32_t)code_match * 25U
-             + (uint32_t)inner_mix * 5U;
-    return (uint16_t)(weighted / 100U);
+    weighted = static_cast<uint32_t>(ring_score) * 45U
+             + static_cast<uint32_t>(quiet_score) * 25U
+             + static_cast<uint32_t>(code_match) * 25U
+             + static_cast<uint32_t>(inner_mix) * 5U;
+    return static_cast<uint16_t>(weighted / 100U);
 }
 
 static void vision_tag_try_candidate(vision_tag_candidate_t *best,
@@ -1021,18 +1027,18 @@ static void vision_tag_try_candidate(vision_tag_candidate_t *best,
         best->width = width;
         best->height = height;
         best->score = score;
-        best->center_x = (int16_t)(x + width / 2);
-        best->center_y = (int16_t)(y + height / 2);
-        best->size_px = (uint16_t)(((uint16_t)width + (uint16_t)height) / 2U);
+        best->center_x = static_cast<int16_t>(x + width / 2);
+        best->center_y = static_cast<int16_t>(y + height / 2);
+        best->size_px = static_cast<uint16_t>((static_cast<uint16_t>(width) + static_cast<uint16_t>(height)) / 2U);
         best->contrast = 0U;
         best->corners[0].x = x;
         best->corners[0].y = y;
-        best->corners[1].x = (int16_t)(x + width - 1);
+        best->corners[1].x = static_cast<int16_t>(x + width - 1);
         best->corners[1].y = y;
-        best->corners[2].x = (int16_t)(x + width - 1);
-        best->corners[2].y = (int16_t)(y + height - 1);
+        best->corners[2].x = static_cast<int16_t>(x + width - 1);
+        best->corners[2].y = static_cast<int16_t>(y + height - 1);
         best->corners[3].x = x;
-        best->corners[3].y = (int16_t)(y + height - 1);
+        best->corners[3].y = static_cast<int16_t>(y + height - 1);
         best->has_corners = 1U;
         best->perspective_corrected = 0U;
     }
@@ -1076,18 +1082,18 @@ static uint8_t vision_tag_quad_from_extremes(const vision_tag_point_t extremes[V
         for (a = 0U; a + 3U < unique_count; ++a)
         {
             uint8_t b;
-            for (b = (uint8_t)(a + 1U); b + 2U < unique_count; ++b)
+            for (b = static_cast<uint8_t>(a + 1U); b + 2U < unique_count; ++b)
             {
                 uint8_t c;
-                for (c = (uint8_t)(b + 1U); c + 1U < unique_count; ++c)
+                for (c = static_cast<uint8_t>(b + 1U); c + 1U < unique_count; ++c)
                 {
                     uint8_t d;
-                    for (d = (uint8_t)(c + 1U); d < unique_count; ++d)
+                    for (d = static_cast<uint8_t>(c + 1U); d < unique_count; ++d)
                     {
                         vision_tag_point_t candidate[4];
                         uint32_t area;
                         uint32_t min_edge_sq;
-                        uint16_t min_edge = vision_tag_max_u16(7U, (uint16_t)(min_size / 2U));
+                        uint16_t min_edge = vision_tag_max_u16(7U, static_cast<uint16_t>(min_size / 2U));
 
                         candidate[0] = unique[a];
                         candidate[1] = unique[b];
@@ -1097,7 +1103,7 @@ static uint8_t vision_tag_quad_from_extremes(const vision_tag_point_t extremes[V
                         {
                             continue;
                         }
-                        min_edge_sq = (uint32_t)min_edge * min_edge;
+                        min_edge_sq = static_cast<uint32_t>(min_edge) * min_edge;
                         if ((vision_tag_point_distance_sq(&candidate[0], &candidate[1]) < min_edge_sq)
                             || (vision_tag_point_distance_sq(&candidate[1], &candidate[2]) < min_edge_sq)
                             || (vision_tag_point_distance_sq(&candidate[2], &candidate[3]) < min_edge_sq)
@@ -1106,7 +1112,7 @@ static uint8_t vision_tag_quad_from_extremes(const vision_tag_point_t extremes[V
                             continue;
                         }
                         area = vision_tag_quad_area2(candidate);
-                        if ((area > best_area) && (area >= (uint32_t)min_size * min_size))
+                        if ((area > best_area) && (area >= static_cast<uint32_t>(min_size) * min_size))
                         {
                             best_area = area;
                             corners[0] = candidate[0];
@@ -1138,19 +1144,19 @@ static void vision_tag_try_quad_component(vision_tag_candidate_t *best,
                                           uint16_t max_size)
 {
     vision_tag_point_t corners[4];
-    uint16_t bbox_width = (uint16_t)(max_x - min_x + 1);
-    uint16_t bbox_height = (uint16_t)(max_y - min_y + 1);
-    uint16_t max_bbox = (uint16_t)(max_size + max_size / 2U + 4U);
+    uint16_t bbox_width = static_cast<uint16_t>(max_x - min_x + 1);
+    uint16_t bbox_height = static_cast<uint16_t>(max_y - min_y + 1);
+    uint16_t max_bbox = static_cast<uint16_t>(max_size + max_size / 2U + 4U);
     uint16_t contrast = 0U;
     uint16_t score;
     uint32_t edge_sum = 0U;
     uint8_t index;
 
-    if ((component_pixels < (uint32_t)min_size * 2U)
+    if ((component_pixels < static_cast<uint32_t>(min_size) * 2U)
         || (bbox_width < min_size) || (bbox_height < min_size)
         || (bbox_width > max_bbox) || (bbox_height > max_bbox)
-        || ((uint32_t)bbox_width * 3U < bbox_height)
-        || ((uint32_t)bbox_height * 3U < bbox_width)
+        || (static_cast<uint32_t>(bbox_width) * 3U < bbox_height)
+        || (static_cast<uint32_t>(bbox_height) * 3U < bbox_width)
         || (vision_tag_quad_from_extremes(extremes, min_size, corners) == 0U))
     {
         return;
@@ -1171,13 +1177,13 @@ static void vision_tag_try_quad_component(vision_tag_candidate_t *best,
     }
     best->x = min_x;
     best->y = min_y;
-    best->width = (int16_t)bbox_width;
-    best->height = (int16_t)bbox_height;
-    best->center_x = (int16_t)(((int32_t)corners[0].x + corners[1].x
+    best->width = static_cast<int16_t>(bbox_width);
+    best->height = static_cast<int16_t>(bbox_height);
+    best->center_x = static_cast<int16_t>((static_cast<int32_t>(corners[0].x) + corners[1].x
                               + corners[2].x + corners[3].x) / 4L);
-    best->center_y = (int16_t)(((int32_t)corners[0].y + corners[1].y
+    best->center_y = static_cast<int16_t>((static_cast<int32_t>(corners[0].y) + corners[1].y
                               + corners[2].y + corners[3].y) / 4L);
-    best->size_px = (uint16_t)(edge_sum / 4U);
+    best->size_px = static_cast<uint16_t>(edge_sum / 4U);
     best->contrast = contrast;
     best->score = score;
     best->has_corners = 1U;
@@ -1200,17 +1206,20 @@ static void vision_tag_search_quadrilaterals(vision_tag_candidate_t *best,
     int16_t seed_x;
     int16_t seed_y;
 
-    region_x0 = (int16_t)vision_tag_clamp_i32(region_x0, 0, image_width);
-    region_y0 = (int16_t)vision_tag_clamp_i32(region_y0, 0, image_height);
-    region_x1 = (int16_t)vision_tag_clamp_i32(region_x1, 0, image_width);
-    region_y1 = (int16_t)vision_tag_clamp_i32(region_y1, 0, image_height);
-    memset(s_cc_visited, 0, sizeof(s_cc_visited));
+    region_x0 = static_cast<int16_t>(vision_tag_clamp_i32(region_x0, 0, image_width));
+    region_y0 = static_cast<int16_t>(vision_tag_clamp_i32(region_y0, 0, image_height));
+    region_x1 = static_cast<int16_t>(vision_tag_clamp_i32(region_x1, 0, image_width));
+    region_y1 = static_cast<int16_t>(vision_tag_clamp_i32(region_y1, 0, image_height));
+    for(auto &value : s_cc_visited)
+    {
+        value = 0U;
+    }
 
     for (seed_y = region_y0; seed_y < region_y1; ++seed_y)
     {
         for (seed_x = region_x0; seed_x < region_x1; ++seed_x)
         {
-            uint32_t seed_index = (uint32_t)(uint16_t)seed_y * image_width + (uint16_t)seed_x;
+            uint32_t seed_index = static_cast<uint32_t>(static_cast<uint16_t>(seed_y)) * image_width + static_cast<uint16_t>(seed_x);
             uint32_t stack_size;
             uint32_t component_pixels;
             int16_t min_x;
@@ -1220,13 +1229,13 @@ static void vision_tag_search_quadrilaterals(vision_tag_candidate_t *best,
             vision_tag_point_t extremes[VISION_TAG_QUAD_EXTREMES];
 
             if ((vision_tag_visited_get(seed_index) != 0U)
-                || (image[(uint32_t)(uint16_t)seed_y * stride + (uint16_t)seed_x] >= threshold))
+                || (image[static_cast<uint32_t>(static_cast<uint16_t>(seed_y)) * stride + static_cast<uint16_t>(seed_x)] >= threshold))
             {
                 continue;
             }
 
             vision_tag_visited_set(seed_index);
-            s_cc_stack[0] = (uint16_t)seed_index;
+            s_cc_stack[0] = static_cast<uint16_t>(seed_index);
             stack_size = 1U;
             component_pixels = 0U;
             min_x = seed_x; max_x = seed_x;
@@ -1243,10 +1252,10 @@ static void vision_tag_search_quadrilaterals(vision_tag_candidate_t *best,
             while (stack_size != 0U)
             {
                 uint16_t packed = s_cc_stack[--stack_size];
-                int16_t x = (int16_t)(packed % image_width);
-                int16_t y = (int16_t)(packed / image_width);
-                int32_t difference = (int32_t)x - y;
-                int32_t sum = (int32_t)x + y;
+                int16_t x = static_cast<int16_t>(packed % image_width);
+                int16_t y = static_cast<int16_t>(packed / image_width);
+                int32_t difference = static_cast<int32_t>(x) - y;
+                int32_t sum = static_cast<int32_t>(x) + y;
                 int8_t dy;
 
                 ++component_pixels;
@@ -1257,23 +1266,23 @@ static void vision_tag_search_quadrilaterals(vision_tag_candidate_t *best,
 
                 if ((y < extremes[0].y) || ((y == extremes[0].y) && (x < extremes[0].x)))
                     { extremes[0].x = x; extremes[0].y = y; }
-                if ((difference > (int32_t)extremes[1].x - extremes[1].y)
-                    || ((difference == (int32_t)extremes[1].x - extremes[1].y) && (x > extremes[1].x)))
+                if ((difference > static_cast<int32_t>(extremes[1].x) - extremes[1].y)
+                    || ((difference == static_cast<int32_t>(extremes[1].x) - extremes[1].y) && (x > extremes[1].x)))
                     { extremes[1].x = x; extremes[1].y = y; }
                 if ((x > extremes[2].x) || ((x == extremes[2].x) && (y < extremes[2].y)))
                     { extremes[2].x = x; extremes[2].y = y; }
-                if ((sum > (int32_t)extremes[3].x + extremes[3].y)
-                    || ((sum == (int32_t)extremes[3].x + extremes[3].y) && (x > extremes[3].x)))
+                if ((sum > static_cast<int32_t>(extremes[3].x) + extremes[3].y)
+                    || ((sum == static_cast<int32_t>(extremes[3].x) + extremes[3].y) && (x > extremes[3].x)))
                     { extremes[3].x = x; extremes[3].y = y; }
                 if ((y > extremes[4].y) || ((y == extremes[4].y) && (x > extremes[4].x)))
                     { extremes[4].x = x; extremes[4].y = y; }
-                if ((difference < (int32_t)extremes[5].x - extremes[5].y)
-                    || ((difference == (int32_t)extremes[5].x - extremes[5].y) && (x < extremes[5].x)))
+                if ((difference < static_cast<int32_t>(extremes[5].x) - extremes[5].y)
+                    || ((difference == static_cast<int32_t>(extremes[5].x) - extremes[5].y) && (x < extremes[5].x)))
                     { extremes[5].x = x; extremes[5].y = y; }
                 if ((x < extremes[6].x) || ((x == extremes[6].x) && (y > extremes[6].y)))
                     { extremes[6].x = x; extremes[6].y = y; }
-                if ((sum < (int32_t)extremes[7].x + extremes[7].y)
-                    || ((sum == (int32_t)extremes[7].x + extremes[7].y) && (x < extremes[7].x)))
+                if ((sum < static_cast<int32_t>(extremes[7].x) + extremes[7].y)
+                    || ((sum == static_cast<int32_t>(extremes[7].x) + extremes[7].y) && (x < extremes[7].x)))
                     { extremes[7].x = x; extremes[7].y = y; }
 
                 for (dy = -1; dy <= 1; ++dy)
@@ -1285,19 +1294,19 @@ static void vision_tag_search_quadrilaterals(vision_tag_candidate_t *best,
                         int16_t ny;
                         uint32_t neighbor_index;
                         if ((dx == 0) && (dy == 0)) { continue; }
-                        nx = (int16_t)(x + dx);
-                        ny = (int16_t)(y + dy);
+                        nx = static_cast<int16_t>(x + dx);
+                        ny = static_cast<int16_t>(y + dy);
                         if ((nx < region_x0) || (nx >= region_x1)
                             || (ny < region_y0) || (ny >= region_y1))
                         {
                             continue;
                         }
-                        neighbor_index = (uint32_t)(uint16_t)ny * image_width + (uint16_t)nx;
+                        neighbor_index = static_cast<uint32_t>(static_cast<uint16_t>(ny)) * image_width + static_cast<uint16_t>(nx);
                         if ((vision_tag_visited_get(neighbor_index) == 0U)
-                            && (image[(uint32_t)(uint16_t)ny * stride + (uint16_t)nx] < threshold))
+                            && (image[static_cast<uint32_t>(static_cast<uint16_t>(ny)) * stride + static_cast<uint16_t>(nx)] < threshold))
                         {
                             vision_tag_visited_set(neighbor_index);
-                            s_cc_stack[stack_size++] = (uint16_t)neighbor_index;
+                            s_cc_stack[stack_size++] = static_cast<uint16_t>(neighbor_index);
                         }
                     }
                 }
@@ -1323,10 +1332,10 @@ static void vision_tag_search_region(vision_tag_candidate_t *best,
 {
     uint16_t size;
 
-    region_x0 = (int16_t)vision_tag_clamp_i32(region_x0, 0, image_width);
-    region_y0 = (int16_t)vision_tag_clamp_i32(region_y0, 0, image_height);
-    region_x1 = (int16_t)vision_tag_clamp_i32(region_x1, 0, image_width);
-    region_y1 = (int16_t)vision_tag_clamp_i32(region_y1, 0, image_height);
+    region_x0 = static_cast<int16_t>(vision_tag_clamp_i32(region_x0, 0, image_width));
+    region_y0 = static_cast<int16_t>(vision_tag_clamp_i32(region_y0, 0, image_height));
+    region_x1 = static_cast<int16_t>(vision_tag_clamp_i32(region_x1, 0, image_width));
+    region_y1 = static_cast<int16_t>(vision_tag_clamp_i32(region_y1, 0, image_height));
 
     for (size = min_size; size <= max_size; )
     {
@@ -1335,7 +1344,7 @@ static void vision_tag_search_region(vision_tag_candidate_t *best,
          * 坐标至少 2 px 一步，大目标再适度加粗，兼顾可靠性与全图重捕获耗时。
          */
         uint16_t size_step = 2U;
-        uint16_t position_step = vision_tag_max_u16(2U, (uint16_t)(size / 24U));
+        uint16_t position_step = vision_tag_max_u16(2U, static_cast<uint16_t>(size / 24U));
         uint8_t aspect_index;
         uint8_t aspect_count = (include_aspect_variants != 0U) ? 3U : 1U;
 
@@ -1348,18 +1357,18 @@ static void vision_tag_search_region(vision_tag_candidate_t *best,
 
             if (aspect_index == 0U)
             {
-                candidate_width = (int16_t)size;
-                candidate_height = (int16_t)size;
+                candidate_width = static_cast<int16_t>(size);
+                candidate_height = static_cast<int16_t>(size);
             }
             else if (aspect_index == 1U)
             {
-                candidate_width = (int16_t)((size * 3U) / 4U);
-                candidate_height = (int16_t)size;
+                candidate_width = static_cast<int16_t>((size * 3U) / 4U);
+                candidate_height = static_cast<int16_t>(size);
             }
             else
             {
-                candidate_width = (int16_t)size;
-                candidate_height = (int16_t)((size * 3U) / 4U);
+                candidate_width = static_cast<int16_t>(size);
+                candidate_height = static_cast<int16_t>((size * 3U) / 4U);
             }
 
             if ((candidate_width < 12) || (candidate_height < 12))
@@ -1367,9 +1376,9 @@ static void vision_tag_search_region(vision_tag_candidate_t *best,
                 continue;
             }
 
-            for (y = region_y0; (int32_t)y + candidate_height <= region_y1; y = (int16_t)(y + position_step))
+            for (y = region_y0; static_cast<int32_t>(y) + candidate_height <= region_y1; y = static_cast<int16_t>(y + position_step))
             {
-                for (x = region_x0; (int32_t)x + candidate_width <= region_x1; x = (int16_t)(x + position_step))
+                for (x = region_x0; static_cast<int32_t>(x) + candidate_width <= region_x1; x = static_cast<int16_t>(x + position_step))
                 {
                     vision_tag_try_candidate(best, x, y, candidate_width, candidate_height,
                                              image_width, image_height);
@@ -1377,11 +1386,11 @@ static void vision_tag_search_region(vision_tag_candidate_t *best,
             }
         }
 
-        if ((uint32_t)size + size_step > max_size)
+        if (static_cast<uint32_t>(size) + size_step > max_size)
         {
             break;
         }
-        size = (uint16_t)(size + size_step);
+        size = static_cast<uint16_t>(size + size_step);
     }
 }
 
@@ -1395,7 +1404,7 @@ static vision_tag_candidate_t vision_tag_find_best(const uint8_t *image,
     vision_tag_candidate_t best;
     uint16_t max_size = s_config.max_size_px;
 
-    memset(&best, 0, sizeof(best));
+    best = {};
     if ((max_size == 0U) || (max_size > vision_tag_min_u16(width, height)))
     {
         max_size = vision_tag_min_u16(width, height);
@@ -1404,30 +1413,30 @@ static vision_tag_candidate_t vision_tag_find_best(const uint8_t *image,
     /* 锁定或刚命中时先搜预测点附近，可显著降低平均计算量。 */
     if ((s_locked != 0U) || (s_hit_streak != 0U))
     {
-        int16_t center_x = (int16_t)(s_center_x_q8 / VISION_TAG_Q8_ONE);
-        int16_t center_y = (int16_t)(s_center_y_q8 / VISION_TAG_Q8_ONE);
-        uint16_t old_size = (uint16_t)vision_tag_clamp_i32(s_size_q8 / VISION_TAG_Q8_ONE,
-                                                           s_config.min_size_px, max_size);
-        uint16_t roi_half = vision_tag_max_u16(24U, (uint16_t)(old_size * 2U));
+        int16_t center_x = static_cast<int16_t>(s_center_x_q8 / VISION_TAG_Q8_ONE);
+        int16_t center_y = static_cast<int16_t>(s_center_y_q8 / VISION_TAG_Q8_ONE);
+        uint16_t old_size = static_cast<uint16_t>(vision_tag_clamp_i32(s_size_q8 / VISION_TAG_Q8_ONE,
+                                                           s_config.min_size_px, max_size));
+        uint16_t roi_half = vision_tag_max_u16(24U, static_cast<uint16_t>(old_size * 2U));
         uint16_t roi_min_size = vision_tag_max_u16(s_config.min_size_px,
-                                                   (uint16_t)((old_size * 5U) / 8U));
+                                                   static_cast<uint16_t>((old_size * 5U) / 8U));
         uint16_t roi_max_size = vision_tag_min_u16(max_size,
-                                                   (uint16_t)((old_size * 13U) / 8U));
+                                                   static_cast<uint16_t>((old_size * 13U) / 8U));
 
         vision_tag_search_region(&best, width, height,
-                                 (int16_t)(center_x - (int16_t)roi_half),
-                                 (int16_t)(center_y - (int16_t)roi_half),
-                                 (int16_t)(center_x + (int16_t)roi_half),
-                                 (int16_t)(center_y + (int16_t)roi_half),
+                                 static_cast<int16_t>(center_x - static_cast<int16_t>(roi_half)),
+                                 static_cast<int16_t>(center_y - static_cast<int16_t>(roi_half)),
+                                 static_cast<int16_t>(center_x + static_cast<int16_t>(roi_half)),
+                                 static_cast<int16_t>(center_y + static_cast<int16_t>(roi_half)),
                                  roi_min_size, roi_max_size, 1U);
 
         if (best.score < s_config.min_confidence)
         {
             vision_tag_search_quadrilaterals(&best, image, width, height, stride, threshold,
-                                             (int16_t)(center_x - (int16_t)roi_half),
-                                             (int16_t)(center_y - (int16_t)roi_half),
-                                             (int16_t)(center_x + (int16_t)roi_half),
-                                             (int16_t)(center_y + (int16_t)roi_half),
+                                             static_cast<int16_t>(center_x - static_cast<int16_t>(roi_half)),
+                                             static_cast<int16_t>(center_y - static_cast<int16_t>(roi_half)),
+                                             static_cast<int16_t>(center_x + static_cast<int16_t>(roi_half)),
+                                             static_cast<int16_t>(center_y + static_cast<int16_t>(roi_half)),
                                              roi_min_size, roi_max_size);
         }
     }
@@ -1435,12 +1444,12 @@ static vision_tag_candidate_t vision_tag_find_best(const uint8_t *image,
     /* ROI 未达到门限时立即全图重捕获，避免错误锁定把真正目标排除在外。 */
     if ((best.score < s_config.min_confidence) && (allow_full_search != 0U))
     {
-        memset(&best, 0, sizeof(best));
+        best = {};
         /* Connected black-border components provide four corners for both
          * rotated and perspective-compressed tags.  Exact ID0 decoding is
          * performed after projective normalization. */
         vision_tag_search_quadrilaterals(&best, image, width, height, stride, threshold,
-                                         0, 0, (int16_t)width, (int16_t)height,
+                                         0, 0, static_cast<int16_t>(width), static_cast<int16_t>(height),
                                          s_config.min_size_px, max_size);
 
         /* The printed marker is square when first acquired.  Scanning only
@@ -1450,7 +1459,7 @@ static vision_tag_candidate_t vision_tag_find_best(const uint8_t *image,
         if (best.score < s_config.min_confidence)
         {
             vision_tag_search_region(&best, width, height, 0, 0,
-                                     (int16_t)width, (int16_t)height,
+                                     static_cast<int16_t>(width), static_cast<int16_t>(height),
                                      s_config.min_size_px, max_size, 0U);
         }
     }
@@ -1462,12 +1471,12 @@ static uint16_t vision_tag_measure_contrast(const uint8_t *image,
                                             uint16_t stride,
                                             const vision_tag_candidate_t *candidate)
 {
-    int16_t border_x = (int16_t)(candidate->width / 8);
-    int16_t border_y = (int16_t)(candidate->height / 8);
+    int16_t border_x = static_cast<int16_t>(candidate->width / 8);
+    int16_t border_y = static_cast<int16_t>(candidate->height / 8);
     int16_t x0 = candidate->x;
     int16_t y0 = candidate->y;
-    int16_t x1 = (int16_t)(x0 + candidate->width);
-    int16_t y1 = (int16_t)(y0 + candidate->height);
+    int16_t x1 = static_cast<int16_t>(x0 + candidate->width);
+    int16_t y1 = static_cast<int16_t>(y0 + candidate->height);
     uint32_t ring_sum = 0U;
     uint32_t quiet_sum = 0U;
     uint32_t ring_count = 0U;
@@ -1484,18 +1493,18 @@ static uint16_t vision_tag_measure_contrast(const uint8_t *image,
         border_y = 2;
     }
 
-    for (y = (int16_t)(y0 - border_y); y < (int16_t)(y1 + border_y); ++y)
+    for (y = static_cast<int16_t>(y0 - border_y); y < static_cast<int16_t>(y1 + border_y); ++y)
     {
-        const uint8_t *row = image + (uint32_t)y * stride;
-        for (x = (int16_t)(x0 - border_x); x < (int16_t)(x1 + border_x); ++x)
+        const uint8_t *row = image + static_cast<uint32_t>(y) * stride;
+        for (x = static_cast<int16_t>(x0 - border_x); x < static_cast<int16_t>(x1 + border_x); ++x)
         {
             if ((x < x0) || (x >= x1) || (y < y0) || (y >= y1))
             {
                 quiet_sum += row[x];
                 ++quiet_count;
             }
-            else if ((x < (int16_t)(x0 + border_x)) || (x >= (int16_t)(x1 - border_x))
-                     || (y < (int16_t)(y0 + border_y)) || (y >= (int16_t)(y1 - border_y)))
+            else if ((x < static_cast<int16_t>(x0 + border_x)) || (x >= static_cast<int16_t>(x1 - border_x))
+                     || (y < static_cast<int16_t>(y0 + border_y)) || (y >= static_cast<int16_t>(y1 - border_y)))
             {
                 ring_sum += row[x];
                 ++ring_count;
@@ -1510,7 +1519,7 @@ static uint16_t vision_tag_measure_contrast(const uint8_t *image,
     {
         uint32_t ring_mean = ring_sum / ring_count;
         uint32_t quiet_mean = quiet_sum / quiet_count;
-        return (uint16_t)((quiet_mean > ring_mean) ? (quiet_mean - ring_mean) : 0U);
+        return static_cast<uint16_t>((quiet_mean > ring_mean) ? (quiet_mean - ring_mean) : 0U);
     }
 }
 
@@ -1522,28 +1531,28 @@ static void vision_tag_update_bbox_from_filter(uint16_t width, uint16_t height)
     int32_t x;
     int32_t y;
 
-    center_x = vision_tag_clamp_i32(center_x, 0, (int32_t)width - 1);
-    center_y = vision_tag_clamp_i32(center_y, 0, (int32_t)height - 1);
+    center_x = vision_tag_clamp_i32(center_x, 0, static_cast<int32_t>(width) - 1);
+    center_y = vision_tag_clamp_i32(center_y, 0, static_cast<int32_t>(height) - 1);
     size = vision_tag_clamp_i32(size, 0, vision_tag_min_u16(width, height));
     x = center_x - size / 2;
     y = center_y - size / 2;
-    x = vision_tag_clamp_i32(x, 0, (int32_t)width - 1);
-    y = vision_tag_clamp_i32(y, 0, (int32_t)height - 1);
+    x = vision_tag_clamp_i32(x, 0, static_cast<int32_t>(width) - 1);
+    y = vision_tag_clamp_i32(y, 0, static_cast<int32_t>(height) - 1);
 
-    s_result.center_x = (int16_t)center_x;
-    s_result.center_y = (int16_t)center_y;
-    s_result.size_px = (uint16_t)size;
-    s_result.bbox.x = (int16_t)x;
-    s_result.bbox.y = (int16_t)y;
-    s_result.bbox.width = (int16_t)vision_tag_clamp_i32(size, 0, (int32_t)width - x);
-    s_result.bbox.height = (int16_t)vision_tag_clamp_i32(size, 0, (int32_t)height - y);
+    s_result.center_x = static_cast<int16_t>(center_x);
+    s_result.center_y = static_cast<int16_t>(center_y);
+    s_result.size_px = static_cast<uint16_t>(size);
+    s_result.bbox.x = static_cast<int16_t>(x);
+    s_result.bbox.y = static_cast<int16_t>(y);
+    s_result.bbox.width = static_cast<int16_t>(vision_tag_clamp_i32(size, 0, static_cast<int32_t>(width) - x));
+    s_result.bbox.height = static_cast<int16_t>(vision_tag_clamp_i32(size, 0, static_cast<int32_t>(height) - y));
 }
 
 static void vision_tag_update_errors(uint16_t width, uint16_t height)
 {
-    int32_t error_x = (int32_t)s_result.center_x - (int32_t)(width / 2U);
-    int32_t error_y = (int32_t)s_result.center_y - (int32_t)(height / 2U);
-    int32_t half_width = (int32_t)(width / 2U);
+    int32_t error_x = static_cast<int32_t>(s_result.center_x) - static_cast<int32_t>(width / 2U);
+    int32_t error_y = static_cast<int32_t>(s_result.center_y) - static_cast<int32_t>(height / 2U);
+    int32_t half_width = static_cast<int32_t>(width / 2U);
     int32_t normalized = 0;
 
     if (half_width > 0)
@@ -1551,17 +1560,17 @@ static void vision_tag_update_errors(uint16_t width, uint16_t height)
         normalized = (error_x * VISION_TAG_Q15_MAX) / half_width;
     }
 
-    s_result.error_x_px = (int16_t)error_x;
-    s_result.error_y_px = (int16_t)error_y;
-    s_result.error_x_q15 = (int16_t)vision_tag_clamp_i32(normalized,
+    s_result.error_x_px = static_cast<int16_t>(error_x);
+    s_result.error_y_px = static_cast<int16_t>(error_y);
+    s_result.error_x_q15 = static_cast<int16_t>(vision_tag_clamp_i32(normalized,
                                                          -VISION_TAG_Q15_MAX,
-                                                         VISION_TAG_Q15_MAX);
+                                                         VISION_TAG_Q15_MAX));
 }
 
-static void vision_tag_update_distance(void)
+static void vision_tag_update_distance()
 {
     s_result.distance_mm = 0U;
-    s_result.distance_zone = (uint8_t)VISION_TAG_DISTANCE_UNKNOWN;
+    s_result.distance_zone = static_cast<uint8_t>(VISION_TAG_DISTANCE_UNKNOWN);
     if ((s_result.valid == 0U) || (s_result.size_px == 0U)
         || (s_config.distance_scale_mm_px == 0U))
     {
@@ -1571,7 +1580,7 @@ static void vision_tag_update_distance(void)
     {
         uint32_t distance = (s_config.distance_scale_mm_px + s_result.size_px / 2U)
                           / s_result.size_px;
-        s_result.distance_mm = (uint16_t)((distance > 65535U) ? 65535U : distance);
+        s_result.distance_mm = static_cast<uint16_t>((distance > 65535U) ? 65535U : distance);
     }
 
     if ((s_config.follow_near_mm == 0U) || (s_config.follow_far_mm == 0U)
@@ -1581,21 +1590,21 @@ static void vision_tag_update_distance(void)
     }
     if (s_result.distance_mm < s_config.follow_near_mm)
     {
-        s_result.distance_zone = (uint8_t)VISION_TAG_DISTANCE_TOO_CLOSE;
+        s_result.distance_zone = static_cast<uint8_t>(VISION_TAG_DISTANCE_TOO_CLOSE);
     }
     else if (s_result.distance_mm > s_config.follow_far_mm)
     {
-        s_result.distance_zone = (uint8_t)VISION_TAG_DISTANCE_TOO_FAR;
+        s_result.distance_zone = static_cast<uint8_t>(VISION_TAG_DISTANCE_TOO_FAR);
     }
     else
     {
-        s_result.distance_zone = (uint8_t)VISION_TAG_DISTANCE_IN_RANGE;
+        s_result.distance_zone = static_cast<uint8_t>(VISION_TAG_DISTANCE_IN_RANGE);
     }
 }
 
 void vision_tag_tracker_default_config(vision_tag_config_t *config)
 {
-    if (config == NULL)
+    if (config == nullptr)
     {
         return;
     }
@@ -1619,7 +1628,7 @@ void vision_tag_tracker_default_config(vision_tag_config_t *config)
 uint32_t vision_tag_distance_scale_from_sample(uint16_t known_distance_mm,
                                                uint16_t observed_size_px)
 {
-    return (uint32_t)known_distance_mm * (uint32_t)observed_size_px;
+    return static_cast<uint32_t>(known_distance_mm) * static_cast<uint32_t>(observed_size_px);
 }
 
 void vision_tag_tracker_init(const vision_tag_config_t *config)
@@ -1627,7 +1636,7 @@ void vision_tag_tracker_init(const vision_tag_config_t *config)
     vision_tag_config_t defaults;
 
     vision_tag_tracker_default_config(&defaults);
-    s_config = (config != NULL) ? *config : defaults;
+    s_config = (config != nullptr) ? *config : defaults;
 
     if (s_config.min_size_px < 12U)
     {
@@ -1654,7 +1663,7 @@ void vision_tag_tracker_init(const vision_tag_config_t *config)
         s_config.max_size_px = s_config.min_size_px;
     }
 
-    memset(&s_result, 0, sizeof(s_result));
+    s_result = {};
     s_center_x_q8 = 0;
     s_center_y_q8 = 0;
     s_velocity_x_q8 = 0;
@@ -1678,10 +1687,10 @@ const vision_tag_result_t *vision_tag_tracker_process(const uint8_t *image,
     uint8_t skip_search;
     uint32_t next_frame_id = s_result.frame_id + 1U;
 
-    if ((image == NULL) || (width == 0U) || (height == 0U) || (stride < width)
+    if ((image == nullptr) || (width == 0U) || (height == 0U) || (stride < width)
         || (width > VISION_TAG_MAX_WIDTH) || (height > VISION_TAG_MAX_HEIGHT))
     {
-        memset(&s_result, 0, sizeof(s_result));
+        s_result = {};
         s_result.frame_id = next_frame_id;
         s_center_x_q8 = 0;
         s_center_y_q8 = 0;
@@ -1700,16 +1709,16 @@ const vision_tag_result_t *vision_tag_tracker_process(const uint8_t *image,
     s_result.tag_contrast = 0U;
     s_result.has_corners = 0U;
     s_result.perspective_corrected = 0U;
-    memset(&candidate, 0, sizeof(candidate));
-    memset(&frame_stats, 0, sizeof(frame_stats));
+    candidate = {};
+    frame_stats = {};
 
     /*
      * 锁定后每帧只搜预测 ROI；ROI 第一次失败时允许全图重捕获。
      * 持续未锁定时按 full_search_interval 降低全图扫描频率，避免无目标时占满 20 ms 帧周期。
      */
-    skip_search = (uint8_t)(((s_locked == 0U) && (s_hit_streak == 0U)
+    skip_search = static_cast<uint8_t>(((s_locked == 0U) && (s_hit_streak == 0U)
                           && (s_full_search_countdown != 0U)) ? 1U : 0U);
-    allow_full_search = (uint8_t)((s_full_search_countdown == 0U) ? 1U : 0U);
+    allow_full_search = static_cast<uint8_t>((s_full_search_countdown == 0U) ? 1U : 0U);
 
     if (skip_search != 0U)
     {
@@ -1727,7 +1736,7 @@ const vision_tag_result_t *vision_tag_tracker_process(const uint8_t *image,
         s_result.saturated_permille = frame_stats.saturated_permille;
         vision_tag_build_integral(image, width, height, stride, threshold);
         candidate = vision_tag_find_best(image, width, height, stride, threshold,
-                                         (uint8_t)((threshold == global_threshold)
+                                         static_cast<uint8_t>((threshold == global_threshold)
                                                    ? allow_full_search : 0U));
 
         /* A locked ROI uses local Otsu. If it fails, rebuild once with global Otsu before full recovery. */
@@ -1747,7 +1756,7 @@ const vision_tag_result_t *vision_tag_tracker_process(const uint8_t *image,
                                   : vision_tag_measure_contrast(image, stride, &candidate);
             if (s_result.tag_contrast < s_config.min_tag_contrast)
             {
-                memset(&candidate, 0, sizeof(candidate));
+                candidate = {};
             }
         }
 
@@ -1757,7 +1766,7 @@ const vision_tag_result_t *vision_tag_tracker_process(const uint8_t *image,
         }
         else if (allow_full_search != 0U)
         {
-            s_full_search_countdown = (uint8_t)(s_config.full_search_interval - 1U);
+            s_full_search_countdown = static_cast<uint8_t>(s_config.full_search_interval - 1U);
         }
         else if (s_full_search_countdown != 0U)
         {
@@ -1767,9 +1776,9 @@ const vision_tag_result_t *vision_tag_tracker_process(const uint8_t *image,
 
     if (candidate.score >= s_config.min_confidence)
     {
-        int32_t measured_x_q8 = (int32_t)candidate.center_x * VISION_TAG_Q8_ONE;
-        int32_t measured_y_q8 = (int32_t)candidate.center_y * VISION_TAG_Q8_ONE;
-        int32_t measured_size_q8 = (int32_t)candidate.size_px * VISION_TAG_Q8_ONE;
+        int32_t measured_x_q8 = static_cast<int32_t>(candidate.center_x) * VISION_TAG_Q8_ONE;
+        int32_t measured_y_q8 = static_cast<int32_t>(candidate.center_y) * VISION_TAG_Q8_ONE;
+        int32_t measured_size_q8 = static_cast<int32_t>(candidate.size_px) * VISION_TAG_Q8_ONE;
         uint8_t corner_index;
 
         s_result.detected = 1U;
@@ -1808,8 +1817,8 @@ const vision_tag_result_t *vision_tag_tracker_process(const uint8_t *image,
             s_velocity_x_q8 += (residual_x_q8 * s_config.velocity_beta_q8) / 256L;
             s_velocity_y_q8 += (residual_y_q8 * s_config.velocity_beta_q8) / 256L;
             s_size_q8 += ((measured_size_q8 - s_size_q8) * s_config.size_alpha_q8) / 256L;
-            s_result.confidence = (uint16_t)(((uint32_t)s_result.confidence
-                                            + (uint32_t)candidate.score * 3U) / 4U);
+            s_result.confidence = static_cast<uint16_t>((static_cast<uint32_t>(s_result.confidence)
+                                            + static_cast<uint32_t>(candidate.score) * 3U) / 4U);
         }
 
         if (s_hit_streak >= s_config.acquire_frames)
@@ -1832,7 +1841,7 @@ const vision_tag_result_t *vision_tag_tracker_process(const uint8_t *image,
             s_center_y_q8 += s_velocity_y_q8;
             s_velocity_x_q8 = (s_velocity_x_q8 * 3L) / 4L;
             s_velocity_y_q8 = (s_velocity_y_q8 * 3L) / 4L;
-            s_result.confidence = (uint16_t)(((uint32_t)s_result.confidence * 3U) / 4U);
+            s_result.confidence = static_cast<uint16_t>((static_cast<uint32_t>(s_result.confidence) * 3U) / 4U);
             s_result.valid = 1U;
             s_result.predicted = 1U;
         }
@@ -1844,8 +1853,8 @@ const vision_tag_result_t *vision_tag_tracker_process(const uint8_t *image,
             s_result.confidence = 0U;
             s_velocity_x_q8 = 0;
             s_velocity_y_q8 = 0;
-            s_center_x_q8 = (int32_t)(width / 2U) * VISION_TAG_Q8_ONE;
-            s_center_y_q8 = (int32_t)(height / 2U) * VISION_TAG_Q8_ONE;
+            s_center_x_q8 = static_cast<int32_t>(width / 2U) * VISION_TAG_Q8_ONE;
+            s_center_y_q8 = static_cast<int32_t>(height / 2U) * VISION_TAG_Q8_ONE;
             s_size_q8 = 0;
         }
     }
@@ -1856,7 +1865,7 @@ const vision_tag_result_t *vision_tag_tracker_process(const uint8_t *image,
     return &s_result;
 }
 
-const vision_tag_result_t *vision_tag_tracker_get_result(void)
+const vision_tag_result_t *vision_tag_tracker_get_result()
 {
     return &s_result;
 }

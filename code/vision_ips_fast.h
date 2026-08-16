@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 /* Optimized native-size MT9V03X grayscale transfer for the SPI IPS200. */
-void vision_ips_fast_init(void);
+void vision_ips_fast_init();
 void vision_ips_fast_show_gray(const uint8_t *image,
                                const vision_tag_result_t *result);
 

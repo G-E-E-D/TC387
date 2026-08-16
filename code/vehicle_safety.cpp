@@ -8,7 +8,7 @@
 
 static bool safety_config_is_valid(const VehicleSafetyConfig *config)
 {
-    return (config != NULL) &&
+    return (config != nullptr) &&
            isfinite(config->encoder_max_abs_speed_mps) &&
            isfinite(config->encoder_max_acceleration_mps2) &&
            isfinite(config->motor_stall_duty) &&
@@ -65,12 +65,12 @@ static float elapsed_seconds(uint64_t now_us, uint64_t previous_us)
     {
         return 0.0f;
     }
-    elapsed = (double)(now_us - previous_us) * 0.000001;
+    elapsed = static_cast<double>(now_us - previous_us) * 0.000001;
     if(elapsed > 1.0)
     {
         elapsed = 1.0;
     }
-    return (float)elapsed;
+    return static_cast<float>(elapsed);
 }
 
 static float update_condition_timer(float elapsed_s, bool condition,
@@ -152,7 +152,7 @@ static bool values_are_finite(const VehicleSafetyInputs *inputs)
 
     if(!inputs->numeric_valid ||
        !vehicle_float_array_is_finite(actuator_values,
-                                      (unsigned int)(sizeof(actuator_values) /
+                                      static_cast<unsigned int>(sizeof(actuator_values) /
                                       sizeof(actuator_values[0]))) ||
        (fabsf(inputs->left_motor_duty) > 1.0f) ||
        (fabsf(inputs->right_motor_duty) > 1.0f) ||
@@ -204,7 +204,7 @@ static bool values_are_finite(const VehicleSafetyInputs *inputs)
 
         if(!vehicle_float_array_is_finite(
                pose_values,
-               (unsigned int)(sizeof(pose_values) / sizeof(pose_values[0]))))
+               static_cast<unsigned int>(sizeof(pose_values) / sizeof(pose_values[0]))))
         {
             return false;
         }
@@ -222,7 +222,7 @@ static bool values_are_finite(const VehicleSafetyInputs *inputs)
 
         if(!vehicle_float_array_is_finite(
                tracker_values,
-               (unsigned int)(sizeof(tracker_values) /
+               static_cast<unsigned int>(sizeof(tracker_values) /
                sizeof(tracker_values[0]))))
         {
             return false;
@@ -230,10 +230,10 @@ static bool values_are_finite(const VehicleSafetyInputs *inputs)
     }
     if(inputs->additional_numeric_value_count > 0U)
     {
-        if((inputs->additional_numeric_values == NULL) ||
+        if((inputs->additional_numeric_values == nullptr) ||
            !vehicle_float_array_is_finite(
                inputs->additional_numeric_values,
-               (unsigned int)inputs->additional_numeric_value_count))
+               static_cast<unsigned int>(inputs->additional_numeric_value_count)))
         {
             return false;
         }
@@ -255,7 +255,7 @@ static bool encoder_jump_detected(
     double count_delta;
     float maximum_speed_step;
 
-    if(sample == NULL)
+    if(sample == nullptr)
     {
         return false;
     }
@@ -284,21 +284,21 @@ static bool encoder_jump_detected(
         return false;
     }
 
-    dt_s = (double)(sample->timestamp_us - previous_timestamp_us) * 0.000001;
+    dt_s = static_cast<double>(sample->timestamp_us - previous_timestamp_us) * 0.000001;
     if(calibration_valid && isfinite(meter_per_count) &&
        (meter_per_count > 0.0f))
     {
         maximum_count_delta =
-            ((double)config->encoder_max_abs_speed_mps * dt_s /
-             (double)meter_per_count) + 2.0;
-        count_delta = fabs((double)sample->delta_count);
+            (static_cast<double>(config->encoder_max_abs_speed_mps) * dt_s /
+             static_cast<double>(meter_per_count)) + 2.0;
+        count_delta = fabs(static_cast<double>(sample->delta_count));
         if(count_delta > maximum_count_delta)
         {
             return true;
         }
     }
     maximum_speed_step = config->encoder_max_acceleration_mps2 *
-                         (float)dt_s + 0.05f;
+                         static_cast<float>(dt_s) + 0.05f;
     return fabsf(sample->speed_mps - previous_speed_mps) >
            maximum_speed_step;
 }
@@ -308,7 +308,7 @@ static bool imu_range_invalid(const ImuSample *imu,
 {
     unsigned int axis;
 
-    if((imu == NULL) || !imu->accel_gyro_valid)
+    if((imu == nullptr) || !imu->accel_gyro_valid)
     {
         return false;
     }
@@ -329,7 +329,7 @@ static bool imu_range_invalid(const ImuSample *imu,
 
 void vehicle_safety_default_config(VehicleSafetyConfig *config)
 {
-    if(config != NULL)
+    if(config != nullptr)
     {
         config->encoder_max_abs_speed_mps = ENCODER_MAX_ABS_SPEED_MPS;
         config->encoder_max_acceleration_mps2 = ENCODER_MAX_ACCEL_MPS2;
@@ -364,7 +364,7 @@ void vehicle_safety_init(VehicleSafetyMonitor *monitor,
     VehicleSafetyConfig default_config;
     const VehicleSafetyConfig *selected_config;
 
-    if(monitor == NULL)
+    if(monitor == nullptr)
     {
         return;
     }
@@ -373,13 +373,13 @@ void vehicle_safety_init(VehicleSafetyMonitor *monitor,
     monitor->config = *selected_config;
     monitor->calibration_valid =
         vehicle_calibration_is_valid(calibration, tables) && CALIBRATION_VALID;
-    monitor->left_meter_per_count = (calibration != NULL)
+    monitor->left_meter_per_count = (calibration != nullptr)
         ? calibration->left_meter_per_count : 0.0f;
-    monitor->right_meter_per_count = (calibration != NULL)
+    monitor->right_meter_per_count = (calibration != nullptr)
         ? calibration->right_meter_per_count : 0.0f;
-    monitor->steering_left_limit_count = (calibration != NULL)
+    monitor->steering_left_limit_count = (calibration != nullptr)
         ? calibration->steering_left_soft_limit_count : 0;
-    monitor->steering_right_limit_count = (calibration != NULL)
+    monitor->steering_right_limit_count = (calibration != nullptr)
         ? calibration->steering_right_soft_limit_count : 0;
     monitor->left_stall_elapsed_s = 0.0f;
     monitor->right_stall_elapsed_s = 0.0f;
@@ -431,11 +431,11 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
     int64_t steering_lower_limit;
     int64_t steering_upper_limit;
 
-    if((monitor == NULL) || (fault_manager == NULL))
+    if((monitor == nullptr) || (fault_manager == nullptr))
     {
         return;
     }
-    if(inputs == NULL)
+    if(inputs == nullptr)
     {
         vehicle_fault_raise(fault_manager, VEHICLE_FAULT_NUMERIC, true, 0U);
         monitor->monitored_active_flags |= VEHICLE_FAULT_NUMERIC;
@@ -535,9 +535,9 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
     {
         mt_jump = (inputs->steering.timestamp_us <
                    monitor->previous_steering_timestamp_us) ||
-            (fabs((double)inputs->steering.continuous_count -
-                  (double)monitor->previous_steering_count) >
-             (double)monitor->config.mt6701_max_delta_count);
+            (fabs(static_cast<double>(inputs->steering.continuous_count) -
+                  static_cast<double>(monitor->previous_steering_count)) >
+             static_cast<double>(monitor->config.mt6701_max_delta_count));
     }
     steering_lower_limit = (monitor->steering_left_limit_count <
                             monitor->steering_right_limit_count)
@@ -554,9 +554,9 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
         (fabsf(inputs->steering_motor_duty) >=
          monitor->config.steering_stall_duty) &&
         monitor->previous_steering_valid &&
-        (fabs((double)inputs->steering.continuous_count -
-              (double)monitor->previous_steering_count) <=
-         (double)monitor->config.steering_stall_count_delta);
+        (fabs(static_cast<double>(inputs->steering.continuous_count) -
+              static_cast<double>(monitor->previous_steering_count)) <=
+         static_cast<double>(monitor->config.steering_stall_count_delta));
     monitor->steering_stall_elapsed_s = update_condition_timer(
         monitor->steering_stall_elapsed_s, steering_stall_condition, dt_s,
         monitor->config.steering_stall_timeout_s);
@@ -702,7 +702,7 @@ bool vehicle_safety_manual_reset(VehicleSafetyMonitor *monitor,
 {
     bool reset_ok;
 
-    if((monitor == NULL) || (fault_manager == NULL))
+    if((monitor == nullptr) || (fault_manager == nullptr))
     {
         return false;
     }
@@ -726,7 +726,7 @@ bool vehicle_safety_manual_reset(VehicleSafetyMonitor *monitor,
 uint32_t vehicle_safety_get_controlled_stop_request_flags(
     const VehicleSafetyMonitor *monitor)
 {
-    return (monitor != NULL)
+    return (monitor != nullptr)
         ? monitor->controlled_stop_request_flags
         : VEHICLE_FAULT_NONE;
 }
@@ -734,7 +734,7 @@ uint32_t vehicle_safety_get_controlled_stop_request_flags(
 bool vehicle_safety_output_is_allowed(const VehicleSafetyMonitor *monitor,
                                       const VehicleFaultManager *fault_manager)
 {
-    return (monitor != NULL) && (fault_manager != NULL) &&
+    return (monitor != nullptr) && (fault_manager != nullptr) &&
            monitor->calibration_valid &&
            !monitor->automatic_output_inhibited &&
            !vehicle_fault_has_active(fault_manager) &&
@@ -745,7 +745,7 @@ void vehicle_safety_gate_actuators(const VehicleSafetyMonitor *monitor,
                                    const VehicleFaultManager *fault_manager,
                                    VehicleActuatorCommand *command)
 {
-    if(command == NULL)
+    if(command == nullptr)
     {
         return;
     }
@@ -754,7 +754,7 @@ void vehicle_safety_gate_actuators(const VehicleSafetyMonitor *monitor,
         command->left_motor_duty = 0.0f;
         command->right_motor_duty = 0.0f;
         command->steering_motor_duty = 0.0f;
-        command->immediate_stop = (fault_manager != NULL)
+        command->immediate_stop = (fault_manager != nullptr)
             ? fault_manager->immediate_stop : true;
     }
 }

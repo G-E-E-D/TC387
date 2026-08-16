@@ -12,7 +12,7 @@
 static Stage1ControlCommand g_external_command;
 static uint32_t g_command_generation;
 
-void perception_init(void)
+void perception_init()
 {
     g_external_command.target_speed_mps = 0.0f;
     g_external_command.target_steering_rad = 0.0f;
@@ -20,7 +20,7 @@ void perception_init(void)
     g_command_generation = 0U;
 }
 
-void perception_update(void)
+void perception_update()
 {
 #if VEHICLE_VISION_ENABLE
     vision_runtime_snapshot_t snapshot;
@@ -37,11 +37,11 @@ void perception_update(void)
         return;
     }
 
-    error_q15 = (int32_t)snapshot.result.error_x_q15;
+    error_q15 = static_cast<int32_t>(snapshot.result.error_x_q15);
     command.target_speed_mps = VEHICLE_VISION_TARGET_SPEED_MPS;
     /* error_x_q15 is positive when the tag is right; positive vehicle
      * steering is left, so the visual correction has the opposite sign. */
-    command.target_steering_rad = -((float)error_q15 / 32767.0f) *
+    command.target_steering_rad = -(static_cast<float>(error_q15) / 32767.0f) *
                                   VEHICLE_VISION_STEERING_RAD_LIMIT;
     command.target_steering_rad = vehicle_clampf(
         command.target_steering_rad,
@@ -56,7 +56,7 @@ void perception_update(void)
 
 bool perception_get_stage1_command(Stage1ControlCommand *command)
 {
-    if(command == NULL)
+    if(command == nullptr)
     {
         return false;
     }
@@ -66,7 +66,7 @@ bool perception_get_stage1_command(Stage1ControlCommand *command)
 
 void stage1_set_external_command(const Stage1ControlCommand *command)
 {
-    if((command == NULL) || !command->valid ||
+    if((command == nullptr) || !command->valid ||
        !vehicle_float_is_finite(command->target_speed_mps) ||
        !vehicle_float_is_finite(command->target_steering_rad))
     {
@@ -86,7 +86,7 @@ void stage1_set_external_command(const Stage1ControlCommand *command)
     }
 }
 
-void stage1_invalidate_external_command(void)
+void stage1_invalidate_external_command()
 {
     g_external_command.target_speed_mps = 0.0f;
     g_external_command.target_steering_rad = 0.0f;
@@ -97,7 +97,7 @@ void stage1_invalidate_external_command(void)
     }
 }
 
-uint32_t perception_get_command_generation(void)
+uint32_t perception_get_command_generation()
 {
     return g_command_generation;
 }

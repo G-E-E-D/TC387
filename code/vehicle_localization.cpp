@@ -42,8 +42,8 @@ static bool vehicle_localization_inputs_valid(
     const WheelEncoderSample *right_wheel, const ImuSample *imu,
     float steering_angle_rad, bool steering_valid)
 {
-    if((localization == NULL) || !localization->configured ||
-       (left_wheel == NULL) || (right_wheel == NULL) || (imu == NULL) ||
+    if((localization == nullptr) || !localization->configured ||
+       (left_wheel == nullptr) || (right_wheel == nullptr) || (imu == nullptr) ||
        !left_wheel->valid || !right_wheel->valid ||
        !imu->accel_gyro_valid ||
        !vehicle_float_is_finite(left_wheel->speed_mps) ||
@@ -89,7 +89,7 @@ static void vehicle_localization_mark_invalid(
     vehicle_localization_increment_error(localization);
     localization->pose.timestamp_us = timestamp_us;
     localization->pose.valid = false;
-    if(pose != NULL)
+    if(pose != nullptr)
     {
         *pose = localization->pose;
     }
@@ -102,7 +102,7 @@ bool vehicle_localization_init(VehicleLocalization *localization,
 {
     bool valid;
 
-    if(localization == NULL)
+    if(localization == nullptr)
     {
         return false;
     }
@@ -125,7 +125,7 @@ void vehicle_localization_reset(VehicleLocalization *localization,
                                 float x_m, float y_m, float yaw_rad,
                                 float gyro_z_bias_radps)
 {
-    if(localization == NULL)
+    if(localization == nullptr)
     {
         return;
     }
@@ -191,7 +191,7 @@ bool vehicle_localization_update(VehicleLocalization *localization,
     bool model_disagreement;
     bool imu_suspect;
 
-    if((localization == NULL) || (pose == NULL))
+    if((localization == nullptr) || (pose == nullptr))
     {
         return false;
     }
@@ -224,7 +224,7 @@ bool vehicle_localization_update(VehicleLocalization *localization,
     }
 
     delta_time_us = timestamp_us - localization->last_timestamp_us;
-    delta_time_s = (float)delta_time_us * 1.0e-6f;
+    delta_time_s = static_cast<float>(delta_time_us) * 1.0e-6f;
     if((delta_time_s < LOCALIZATION_MIN_DT_S) ||
        (delta_time_s > LOCALIZATION_MAX_DT_S))
     {
@@ -236,9 +236,9 @@ bool vehicle_localization_update(VehicleLocalization *localization,
         return false;
     }
 
-    distance_left_m = (float)left_wheel->delta_count *
+    distance_left_m = static_cast<float>(left_wheel->delta_count) *
                       localization->left_meter_per_count;
-    distance_right_m = (float)right_wheel->delta_count *
+    distance_right_m = static_cast<float>(right_wheel->delta_count) *
                        localization->right_meter_per_count;
     distance_center_m = 0.5f * (distance_left_m + distance_right_m);
     speed_from_distance_mps = distance_center_m / delta_time_s;
@@ -414,5 +414,5 @@ bool vehicle_localization_update(VehicleLocalization *localization,
 const VehicleLocalizationDiagnostics *vehicle_localization_get_diagnostics(
     const VehicleLocalization *localization)
 {
-    return (localization != NULL) ? &localization->diagnostics : NULL;
+    return (localization != nullptr) ? &localization->diagnostics : nullptr;
 }

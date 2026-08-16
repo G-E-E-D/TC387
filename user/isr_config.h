@@ -1,16 +1,16 @@
 /*********************************************************************************************************************
  * COPYRIGHT NOTICE
- * Copyright (c) 2020,Öð·É¿Æ¼¼
+ * Copyright (c) 2020,ï¿½ï¿½É¿Æ¼ï¿½
  * All rights reserved.
- * ¼¼ÊõÌÖÂÛQQÈº£ºÈýÈº£º824575535
+ * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½QQÈºï¿½ï¿½ï¿½ï¿½Èºï¿½ï¿½824575535
  *
- * ÒÔÏÂËùÓÐÄÚÈÝ°æÈ¨¾ùÊôÖð·É¿Æ¼¼ËùÓÐ£¬Î´¾­ÔÊÐí²»µÃÓÃÓÚÉÌÒµÓÃÍ¾£¬
- * »¶Ó­¸÷Î»Ê¹ÓÃ²¢´«²¥±¾³ÌÐò£¬ÐÞ¸ÄÄÚÈÝÊ±±ØÐë±£ÁôÖð·É¿Æ¼¼µÄ°æÈ¨ÉùÃ÷¡£
+ * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý°ï¿½È¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¿Æ¼ï¿½ï¿½ï¿½ï¿½Ð£ï¿½Î´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òµï¿½ï¿½Í¾ï¿½ï¿½
+ * ï¿½ï¿½Ó­ï¿½ï¿½Î»Ê¹ï¿½Ã²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Þ¸ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ë±£ï¿½ï¿½ï¿½ï¿½É¿Æ¼ï¿½ï¿½Ä°ï¿½È¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  *
  * @file       		isr_config
- * @company	   		³É¶¼Öð·É¿Æ¼¼ÓÐÏÞ¹«Ë¾
- * @author     		Öð·É¿Æ¼¼(QQ3184284598)
- * @version    		²é¿´docÄÚversionÎÄ¼þ °æ±¾ËµÃ÷
+ * @company	   		ï¿½É¶ï¿½ï¿½ï¿½É¿Æ¼ï¿½ï¿½ï¿½ï¿½Þ¹ï¿½Ë¾
+ * @author     		ï¿½ï¿½É¿Æ¼ï¿½(QQ3184284598)
+ * @version    		ï¿½é¿´docï¿½ï¿½versionï¿½Ä¼ï¿½ ï¿½æ±¾Ëµï¿½ï¿½
  * @Software 		ADS v1.2.2
  * @Target core		TC387QP
  * @Taobao   		https://seekfree.taobao.com/
@@ -22,25 +22,25 @@
 
 
 
-//======================================================ÌØ±ð×¢Òâ====================================================
-// ÖÐ¶ÏÓÅÏÈ¼¶²»ÄÜÉèÖÃÎªÏàÍ¬Öµ£¬ËùÓÐÖÐ¶ÏÓÅÏÈ¼¶¶¼±ØÐëÉèÖÃÎª²»Ò»ÑùµÄÖµ
-//======================================================ÌØ±ð×¢Òâ====================================================
-//======================================================ÌØ±ð×¢Òâ====================================================
-// ÖÐ¶ÏÓÅÏÈ¼¶²»ÄÜÉèÖÃÎªÏàÍ¬Öµ£¬ËùÓÐÖÐ¶ÏÓÅÏÈ¼¶¶¼±ØÐëÉèÖÃÎª²»Ò»ÑùµÄÖµ
-//======================================================ÌØ±ð×¢Òâ====================================================
-//======================================================ÌØ±ð×¢Òâ====================================================
-// ÖÐ¶ÏÓÅÏÈ¼¶²»ÄÜÉèÖÃÎªÏàÍ¬Öµ£¬ËùÓÐÖÐ¶ÏÓÅÏÈ¼¶¶¼±ØÐëÉèÖÃÎª²»Ò»ÑùµÄÖµ
-//======================================================ÌØ±ð×¢Òâ====================================================
+//======================================================ï¿½Ø±ï¿½×¢ï¿½ï¿½====================================================
+// ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Í¬Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Öµ
+//======================================================ï¿½Ø±ï¿½×¢ï¿½ï¿½====================================================
+//======================================================ï¿½Ø±ï¿½×¢ï¿½ï¿½====================================================
+// ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Í¬Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Öµ
+//======================================================ï¿½Ø±ï¿½×¢ï¿½ï¿½====================================================
+//======================================================ï¿½Ø±ï¿½×¢ï¿½ï¿½====================================================
+// ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Í¬Öµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Öµ
+//======================================================ï¿½Ø±ï¿½×¢ï¿½ï¿½====================================================
 
-//ISR_PRIORITY£º   TC387¾ßÓÐ255¸öÖÐ¶ÏÓÅÏÈ¼¶¿ÉÒÔÉèÖÃ 1-255£¬0ÓÅÏÈ¼¶±íÊ¾²»¿ªÆôÖÐ¶Ï£¬255Îª×î¸ßÓÅÏÈ¼¶
-//INT_SERVICE£º    ºê¶¨Òå¾ö¶¨ÖÐ¶ÏÓÉË­´¦Àí£¬Ò²³ÆÎª·þÎñÌá¹©Õß£¨ÔÚTC387ÖÐ£¬ÖÐ¶Ï±»½Ð×ö·þÎñ£©£¬¿ÉÉèÖÃ·¶Î§IfxSrc_Tos_cpu0 IfxSrc_Tos_cpu1 IfxSrc_Tos_cpu2 IfxSrc_Tos_cpu3 IfxSrc_Tos_dma  ²»¿ÉÉèÖÃÎªÆäËûÖµ
+//ISR_PRIORITYï¿½ï¿½   TC387ï¿½ï¿½ï¿½ï¿½255ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 1-255ï¿½ï¿½0ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶Ï£ï¿½255Îªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½
+//INT_SERVICEï¿½ï¿½    ï¿½ê¶¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½Ë­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò²ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½á¹©ï¿½ß£ï¿½ï¿½ï¿½TC387ï¿½Ð£ï¿½ï¿½Ð¶Ï±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ñ£©£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã·ï¿½Î§IfxSrc_Tos_cpu0 IfxSrc_Tos_cpu1 IfxSrc_Tos_cpu2 IfxSrc_Tos_cpu3 IfxSrc_Tos_dma  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½Öµ
 
 
-//Èç¹ûINT_SERVICEÉèÖÃÎªIfxSrc_Tos_dmaµÄ»°£¬ISR_PRIORITYµÄ¿ÉÉèÖÃ·¶Î§ÔòÊÇ0-127¡£
+//ï¿½ï¿½ï¿½INT_SERVICEï¿½ï¿½ï¿½ï¿½ÎªIfxSrc_Tos_dmaï¿½Ä»ï¿½ï¿½ï¿½ISR_PRIORITYï¿½Ä¿ï¿½ï¿½ï¿½ï¿½Ã·ï¿½Î§ï¿½ï¿½ï¿½ï¿½0-127ï¿½ï¿½
 
-//================================================PITÖÐ¶Ï²ÎÊýÏà¹Ø¶¨Òå===============================================
-#define CCU6_0_CH0_INT_SERVICE  IfxSrc_Tos_cpu0     // ¶¨ÒåCCU6_0 PITÍ¨µÀ0ÖÐ¶Ï·þÎñÀàÐÍ£¬¼´ÖÐ¶ÏÊÇÓÉË­ÏìÓ¦´¦Àí IfxSrc_Tos_cpu0 IfxSrc_Tos_cpu1 IfxSrc_Tos_dma  ²»¿ÉÉèÖÃÎªÆäËûÖµ
-#define CCU6_0_CH0_ISR_PRIORITY 50                  // ¶¨ÒåCCU6_0 PITÍ¨µÀ0ÖÐ¶ÏÓÅÏÈ¼¶ ÓÅÏÈ¼¶·¶Î§1-255 Ô½´óÓÅÏÈ¼¶Ô½¸ß ÓëÆ½Ê±Ê¹ÓÃµÄµ¥Æ¬»ú²»Ò»Ñù
+//================================================PITï¿½Ð¶Ï²ï¿½ï¿½ï¿½ï¿½ï¿½Ø¶ï¿½ï¿½ï¿½===============================================
+#define CCU6_0_CH0_INT_SERVICE  IfxSrc_Tos_cpu0     // ï¿½ï¿½ï¿½ï¿½CCU6_0 PITÍ¨ï¿½ï¿½0ï¿½Ð¶Ï·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½ï¿½Ë­ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ IfxSrc_Tos_cpu0 IfxSrc_Tos_cpu1 IfxSrc_Tos_dma  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½Öµ
+#define CCU6_0_CH0_ISR_PRIORITY 50                  // ï¿½ï¿½ï¿½ï¿½CCU6_0 PITÍ¨ï¿½ï¿½0ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½Î§1-255 Ô½ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½Ô½ï¿½ï¿½ ï¿½ï¿½Æ½Ê±Ê¹ï¿½ÃµÄµï¿½Æ¬ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
 
 #define CCU6_0_CH1_INT_SERVICE  IfxSrc_Tos_cpu0
 #define CCU6_0_CH1_ISR_PRIORITY 51
@@ -53,34 +53,34 @@
 
 
 
-//================================================GPIOÖÐ¶Ï²ÎÊýÏà¹Ø¶¨Òå===============================================
-// Í¨µÀ0ÓëÍ¨µÀ4ÊÇ¹«ÓÃÒ»¸öÖÐ¶Ïº¯Êý ÔÚÖÐ¶ÏÄÚ²¿Í¨¹ý±êÖ¾Î»ÅÐ¶ÏÊÇË­´¥·¢µÄÖÐ¶Ï
-#define EXTI_CH0_CH4_INT_SERVICE IfxSrc_Tos_cpu0    // ¶¨ÒåERUÍ¨µÀ0ºÍÍ¨µÀ4ÖÐ¶Ï·þÎñÀàÐÍ£¬¼´ÖÐ¶ÏÊÇÓÉË­ÏìÓ¦´¦Àí IfxSrc_Tos_cpu0 IfxSrc_Tos_cpu1 IfxSrc_Tos_dma  ²»¿ÉÉèÖÃÎªÆäËûÖµ
-#define EXTI_CH0_CH4_INT_PRIO   60                  // ¶¨ÒåERUÍ¨µÀ0ºÍÍ¨µÀ4ÖÐ¶ÏÓÅÏÈ¼¶ ÓÅÏÈ¼¶·¶Î§1-255 Ô½´óÓÅÏÈ¼¶Ô½¸ß ÓëÆ½Ê±Ê¹ÓÃµÄµ¥Æ¬»ú²»Ò»Ñù
+//================================================GPIOï¿½Ð¶Ï²ï¿½ï¿½ï¿½ï¿½ï¿½Ø¶ï¿½ï¿½ï¿½===============================================
+// Í¨ï¿½ï¿½0ï¿½ï¿½Í¨ï¿½ï¿½4ï¿½Ç¹ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ð¶Ïºï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½Ú²ï¿½Í¨ï¿½ï¿½ï¿½ï¿½Ö¾Î»ï¿½Ð¶ï¿½ï¿½ï¿½Ë­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½
+#define EXTI_CH0_CH4_INT_SERVICE IfxSrc_Tos_cpu0    // ï¿½ï¿½ï¿½ï¿½ERUÍ¨ï¿½ï¿½0ï¿½ï¿½Í¨ï¿½ï¿½4ï¿½Ð¶Ï·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½ï¿½Ë­ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ IfxSrc_Tos_cpu0 IfxSrc_Tos_cpu1 IfxSrc_Tos_dma  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½Öµ
+#define EXTI_CH0_CH4_INT_PRIO   60                  // ï¿½ï¿½ï¿½ï¿½ERUÍ¨ï¿½ï¿½0ï¿½ï¿½Í¨ï¿½ï¿½4ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½Î§1-255 Ô½ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½Ô½ï¿½ï¿½ ï¿½ï¿½Æ½Ê±Ê¹ï¿½ÃµÄµï¿½Æ¬ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
 
-// Í¨µÀ1ÓëÍ¨µÀ5ÊÇ¹«ÓÃÒ»¸öÖÐ¶Ïº¯Êý ÔÚÖÐ¶ÏÄÚ²¿Í¨¹ý±êÖ¾Î» ÅÐ¶ÏÊÇË­´¥·¢µÄÖÐ¶Ï
-#define EXTI_CH1_CH5_INT_SERVICE IfxSrc_Tos_cpu0    // ¶¨ÒåERUÍ¨µÀ1ºÍÍ¨µÀ5ÖÐ¶Ï·þÎñÀàÐÍ£¬Í¬ÉÏ
-#define EXTI_CH1_CH5_INT_PRIO   61                  // ¶¨ÒåERUÍ¨µÀ1ºÍÍ¨µÀ5ÖÐ¶ÏÓÅÏÈ¼¶ Í¬ÉÏ
+// Í¨ï¿½ï¿½1ï¿½ï¿½Í¨ï¿½ï¿½5ï¿½Ç¹ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ð¶Ïºï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½Ú²ï¿½Í¨ï¿½ï¿½ï¿½ï¿½Ö¾Î» ï¿½Ð¶ï¿½ï¿½ï¿½Ë­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½
+#define EXTI_CH1_CH5_INT_SERVICE IfxSrc_Tos_cpu0    // ï¿½ï¿½ï¿½ï¿½ERUÍ¨ï¿½ï¿½1ï¿½ï¿½Í¨ï¿½ï¿½5ï¿½Ð¶Ï·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½Í¬ï¿½ï¿½
+#define EXTI_CH1_CH5_INT_PRIO   61                  // ï¿½ï¿½ï¿½ï¿½ERUÍ¨ï¿½ï¿½1ï¿½ï¿½Í¨ï¿½ï¿½5ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ Í¬ï¿½ï¿½
 
-// Í¨µÀ2ÓëÍ¨µÀ6ÊÇ¹«ÓÃÒ»¸öÖÐ¶Ïº¯Êý ÔÚÖÐ¶ÏÄÚ²¿Í¨¹ý±êÖ¾Î» ÅÐ¶ÏÊÇË­´¥·¢µÄÖÐ¶Ï
-#define EXTI_CH2_CH6_INT_SERVICE IfxSrc_Tos_dma     // ¶¨ÒåERUÍ¨µÀ2ºÍÍ¨µÀ6ÖÐ¶Ï·þÎñÀàÐÍ£¬Í¬ÉÏ
-#define EXTI_CH2_CH6_INT_PRIO   5                   // ¶¨ÒåERUÍ¨µÀ2ºÍÍ¨µÀ6ÖÐ¶ÏÓÅÏÈ¼¶ ¿ÉÉèÖÃ·¶Î§Îª0-127(DMAÏìÓ¦)
+// Í¨ï¿½ï¿½2ï¿½ï¿½Í¨ï¿½ï¿½6ï¿½Ç¹ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ð¶Ïºï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½Ú²ï¿½Í¨ï¿½ï¿½ï¿½ï¿½Ö¾Î» ï¿½Ð¶ï¿½ï¿½ï¿½Ë­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½
+#define EXTI_CH2_CH6_INT_SERVICE IfxSrc_Tos_dma     // ï¿½ï¿½ï¿½ï¿½ERUÍ¨ï¿½ï¿½2ï¿½ï¿½Í¨ï¿½ï¿½6ï¿½Ð¶Ï·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½Í¬ï¿½ï¿½
+#define EXTI_CH2_CH6_INT_PRIO   5                   // ï¿½ï¿½ï¿½ï¿½ERUÍ¨ï¿½ï¿½2ï¿½ï¿½Í¨ï¿½ï¿½6ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ã·ï¿½Î§Îª0-127(DMAï¿½ï¿½Ó¦)
 
-// Í¨µÀ3ÓëÍ¨µÀ7ÊÇ¹«ÓÃÒ»¸öÖÐ¶Ïº¯Êý ÔÚÖÐ¶ÏÄÚ²¿Í¨¹ý±êÖ¾Î» ÅÐ¶ÏÊÇË­´¥·¢µÄÖÐ¶Ï
-#define EXTI_CH3_CH7_INT_SERVICE IfxSrc_Tos_cpu0    // ¶¨ÒåERUÍ¨µÀ3ºÍÍ¨µÀ7ÖÐ¶Ï·þÎñÀàÐÍ£¬Í¬ÉÏ
-#define EXTI_CH3_CH7_INT_PRIO   62                  // ¶¨ÒåERUÍ¨µÀ3ºÍÍ¨µÀ7ÖÐ¶ÏÓÅÏÈ¼¶ Í¬ÉÏ
-
-
-//===================================================DMAÖÐ¶Ï²ÎÊýÏà¹Ø¶¨Òå===============================================
-#define DMA_INT_SERVICE         IfxSrc_Tos_cpu0     // ERU´¥·¢DMAÖÐ¶Ï·þÎñÀàÐÍ£¬¼´ÖÐ¶ÏÊÇÓÉË­ÏìÓ¦´¦Àí IfxSrc_Tos_cpu0 IfxSrc_Tos_cpu1 IfxSrc_Tos_dma  ²»¿ÉÉèÖÃÎªÆäËûÖµ
-#define DMA_INT_PRIO            70                  // ERU´¥·¢DMAÖÐ¶ÏÓÅÏÈ¼¶ ÓÅÏÈ¼¶·¶Î§1-255 Ô½´óÓÅÏÈ¼¶Ô½¸ß ÓëÆ½Ê±Ê¹ÓÃµÄµ¥Æ¬»ú²»Ò»Ñù
+// Í¨ï¿½ï¿½3ï¿½ï¿½Í¨ï¿½ï¿½7ï¿½Ç¹ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ð¶Ïºï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½Ú²ï¿½Í¨ï¿½ï¿½ï¿½ï¿½Ö¾Î» ï¿½Ð¶ï¿½ï¿½ï¿½Ë­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½
+#define EXTI_CH3_CH7_INT_SERVICE IfxSrc_Tos_cpu0    // ï¿½ï¿½ï¿½ï¿½ERUÍ¨ï¿½ï¿½3ï¿½ï¿½Í¨ï¿½ï¿½7ï¿½Ð¶Ï·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½Í¬ï¿½ï¿½
+#define EXTI_CH3_CH7_INT_PRIO   62                  // ï¿½ï¿½ï¿½ï¿½ERUÍ¨ï¿½ï¿½3ï¿½ï¿½Í¨ï¿½ï¿½7ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ Í¬ï¿½ï¿½
 
 
-//===================================================´®¿ÚÖÐ¶Ï²ÎÊýÏà¹Ø¶¨Òå===============================================
-#define UART0_INT_SERVICE       IfxSrc_Tos_cpu0     // ¶¨Òå´®¿Ú0ÖÐ¶Ï·þÎñÀàÐÍ£¬¼´ÖÐ¶ÏÊÇÓÉË­ÏìÓ¦´¦Àí IfxSrc_Tos_cpu0 IfxSrc_Tos_cpu1 IfxSrc_Tos_dma  ²»¿ÉÉèÖÃÎªÆäËûÖµ
-#define UART0_TX_INT_PRIO       11                  // ¶¨Òå´®¿Ú0·¢ËÍÖÐ¶ÏÓÅÏÈ¼¶ ÓÅÏÈ¼¶·¶Î§1-255 Ô½´óÓÅÏÈ¼¶Ô½¸ß ÓëÆ½Ê±Ê¹ÓÃµÄµ¥Æ¬»ú²»Ò»Ñù
-#define UART0_RX_INT_PRIO       10                  // ¶¨Òå´®¿Ú0½ÓÊÕÖÐ¶ÏÓÅÏÈ¼¶ ÓÅÏÈ¼¶·¶Î§1-255 Ô½´óÓÅÏÈ¼¶Ô½¸ß ÓëÆ½Ê±Ê¹ÓÃµÄµ¥Æ¬»ú²»Ò»Ñù
-#define UART0_ER_INT_PRIO       12                  // ¶¨Òå´®¿Ú0´íÎóÖÐ¶ÏÓÅÏÈ¼¶ ÓÅÏÈ¼¶·¶Î§1-255 Ô½´óÓÅÏÈ¼¶Ô½¸ß ÓëÆ½Ê±Ê¹ÓÃµÄµ¥Æ¬»ú²»Ò»Ñù
+//===================================================DMAï¿½Ð¶Ï²ï¿½ï¿½ï¿½ï¿½ï¿½Ø¶ï¿½ï¿½ï¿½===============================================
+#define DMA_INT_SERVICE         IfxSrc_Tos_cpu0     // ERUï¿½ï¿½ï¿½ï¿½DMAï¿½Ð¶Ï·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½ï¿½Ë­ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ IfxSrc_Tos_cpu0 IfxSrc_Tos_cpu1 IfxSrc_Tos_dma  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½Öµ
+#define DMA_INT_PRIO            70                  // ERUï¿½ï¿½ï¿½ï¿½DMAï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½Î§1-255 Ô½ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½Ô½ï¿½ï¿½ ï¿½ï¿½Æ½Ê±Ê¹ï¿½ÃµÄµï¿½Æ¬ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
+
+
+//===================================================ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶Ï²ï¿½ï¿½ï¿½ï¿½ï¿½Ø¶ï¿½ï¿½ï¿½===============================================
+#define UART0_INT_SERVICE       IfxSrc_Tos_cpu0     // ï¿½ï¿½ï¿½å´®ï¿½ï¿½0ï¿½Ð¶Ï·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í£ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½ï¿½Ë­ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½ï¿½ IfxSrc_Tos_cpu0 IfxSrc_Tos_cpu1 IfxSrc_Tos_dma  ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½Öµ
+#define UART0_TX_INT_PRIO       11                  // ï¿½ï¿½ï¿½å´®ï¿½ï¿½0ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½Î§1-255 Ô½ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½Ô½ï¿½ï¿½ ï¿½ï¿½Æ½Ê±Ê¹ï¿½ÃµÄµï¿½Æ¬ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
+#define UART0_RX_INT_PRIO       10                  // ï¿½ï¿½ï¿½å´®ï¿½ï¿½0ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½Î§1-255 Ô½ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½Ô½ï¿½ï¿½ ï¿½ï¿½Æ½Ê±Ê¹ï¿½ÃµÄµï¿½Æ¬ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
+#define UART0_ER_INT_PRIO       12                  // ï¿½ï¿½ï¿½å´®ï¿½ï¿½0ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½È¼ï¿½ ï¿½ï¿½ï¿½È¼ï¿½ï¿½ï¿½Î§1-255 Ô½ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½Ô½ï¿½ï¿½ ï¿½ï¿½Æ½Ê±Ê¹ï¿½ÃµÄµï¿½Æ¬ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
 
 #define UART1_INT_SERVICE       IfxSrc_Tos_cpu0
 #define UART1_TX_INT_PRIO       13
@@ -138,29 +138,29 @@
 
 
 
-//------------ÖÐ¶ÏÏòÁ¿±íÑ¡Ôñ£¨²»ÔÊÐíÐÞ¸Ä£©------------
-#define CCU6_0_CH0_INT_VECTAB_NUM    (int)CCU6_0_CH0_INT_SERVICE      > 0 ? (int)CCU6_0_CH0_INT_SERVICE    - 1 : (int)CCU6_0_CH0_INT_SERVICE
-#define CCU6_0_CH1_INT_VECTAB_NUM    (int)CCU6_0_CH1_INT_SERVICE      > 0 ? (int)CCU6_0_CH1_INT_SERVICE    - 1 : (int)CCU6_0_CH1_INT_SERVICE
-#define CCU6_1_CH0_INT_VECTAB_NUM    (int)CCU6_1_CH0_INT_SERVICE      > 0 ? (int)CCU6_1_CH0_INT_SERVICE    - 1 : (int)CCU6_1_CH0_INT_SERVICE
-#define CCU6_1_CH1_INT_VECTAB_NUM    (int)CCU6_1_CH1_INT_SERVICE      > 0 ? (int)CCU6_1_CH1_INT_SERVICE    - 1 : (int)CCU6_1_CH1_INT_SERVICE
+//------------ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½ñ£¨²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Þ¸Ä£ï¿½------------
+#define CCU6_0_CH0_INT_VECTAB_NUM    static_cast<int>(CCU6_0_CH0_INT_SERVICE)      > 0 ? static_cast<int>(CCU6_0_CH0_INT_SERVICE)    - 1 : static_cast<int>(CCU6_0_CH0_INT_SERVICE)
+#define CCU6_0_CH1_INT_VECTAB_NUM    static_cast<int>(CCU6_0_CH1_INT_SERVICE)      > 0 ? static_cast<int>(CCU6_0_CH1_INT_SERVICE)    - 1 : static_cast<int>(CCU6_0_CH1_INT_SERVICE)
+#define CCU6_1_CH0_INT_VECTAB_NUM    static_cast<int>(CCU6_1_CH0_INT_SERVICE)      > 0 ? static_cast<int>(CCU6_1_CH0_INT_SERVICE)    - 1 : static_cast<int>(CCU6_1_CH0_INT_SERVICE)
+#define CCU6_1_CH1_INT_VECTAB_NUM    static_cast<int>(CCU6_1_CH1_INT_SERVICE)      > 0 ? static_cast<int>(CCU6_1_CH1_INT_SERVICE)    - 1 : static_cast<int>(CCU6_1_CH1_INT_SERVICE)
 
-#define EXTI_CH0_CH4_INT_VECTAB_NUM  (int)EXTI_CH0_CH4_INT_SERVICE    > 0 ? (int)EXTI_CH0_CH4_INT_SERVICE  - 1 : (int)EXTI_CH0_CH4_INT_SERVICE
-#define EXTI_CH1_CH5_INT_VECTAB_NUM  (int)EXTI_CH1_CH5_INT_SERVICE    > 0 ? (int)EXTI_CH1_CH5_INT_SERVICE  - 1 : (int)EXTI_CH1_CH5_INT_SERVICE
-#define EXTI_CH2_CH6_INT_VECTAB_NUM  (int)EXTI_CH2_CH6_INT_SERVICE    > 0 ? (int)EXTI_CH2_CH6_INT_SERVICE  - 1 : (int)EXTI_CH2_CH6_INT_SERVICE
-#define EXTI_CH3_CH7_INT_VECTAB_NUM  (int)EXTI_CH3_CH7_INT_SERVICE    > 0 ? (int)EXTI_CH3_CH7_INT_SERVICE  - 1 : (int)EXTI_CH3_CH7_INT_SERVICE
+#define EXTI_CH0_CH4_INT_VECTAB_NUM  static_cast<int>(EXTI_CH0_CH4_INT_SERVICE)    > 0 ? static_cast<int>(EXTI_CH0_CH4_INT_SERVICE)  - 1 : static_cast<int>(EXTI_CH0_CH4_INT_SERVICE)
+#define EXTI_CH1_CH5_INT_VECTAB_NUM  static_cast<int>(EXTI_CH1_CH5_INT_SERVICE)    > 0 ? static_cast<int>(EXTI_CH1_CH5_INT_SERVICE)  - 1 : static_cast<int>(EXTI_CH1_CH5_INT_SERVICE)
+#define EXTI_CH2_CH6_INT_VECTAB_NUM  static_cast<int>(EXTI_CH2_CH6_INT_SERVICE)    > 0 ? static_cast<int>(EXTI_CH2_CH6_INT_SERVICE)  - 1 : static_cast<int>(EXTI_CH2_CH6_INT_SERVICE)
+#define EXTI_CH3_CH7_INT_VECTAB_NUM  static_cast<int>(EXTI_CH3_CH7_INT_SERVICE)    > 0 ? static_cast<int>(EXTI_CH3_CH7_INT_SERVICE)  - 1 : static_cast<int>(EXTI_CH3_CH7_INT_SERVICE)
 
-#define DMA_INT_VECTAB_NUM           (int)DMA_INT_SERVICE             > 0 ? (int)DMA_INT_SERVICE           - 1 : (int)DMA_INT_SERVICE
+#define DMA_INT_VECTAB_NUM           static_cast<int>(DMA_INT_SERVICE)             > 0 ? static_cast<int>(DMA_INT_SERVICE)           - 1 : static_cast<int>(DMA_INT_SERVICE)
 
-#define UART0_INT_VECTAB_NUM         (int)UART0_INT_SERVICE           > 0 ? (int)UART0_INT_SERVICE         - 1 : (int)UART0_INT_SERVICE
-#define UART1_INT_VECTAB_NUM         (int)UART1_INT_SERVICE           > 0 ? (int)UART1_INT_SERVICE         - 1 : (int)UART1_INT_SERVICE
-#define UART2_INT_VECTAB_NUM         (int)UART2_INT_SERVICE           > 0 ? (int)UART2_INT_SERVICE         - 1 : (int)UART2_INT_SERVICE
-#define UART3_INT_VECTAB_NUM         (int)UART3_INT_SERVICE           > 0 ? (int)UART3_INT_SERVICE         - 1 : (int)UART3_INT_SERVICE
-#define UART4_INT_VECTAB_NUM         (int)UART4_INT_SERVICE           > 0 ? (int)UART4_INT_SERVICE         - 1 : (int)UART4_INT_SERVICE
-#define UART5_INT_VECTAB_NUM         (int)UART5_INT_SERVICE           > 0 ? (int)UART5_INT_SERVICE         - 1 : (int)UART5_INT_SERVICE
-#define UART6_INT_VECTAB_NUM         (int)UART6_INT_SERVICE           > 0 ? (int)UART6_INT_SERVICE         - 1 : (int)UART6_INT_SERVICE
-#define UART8_INT_VECTAB_NUM         (int)UART8_INT_SERVICE           > 0 ? (int)UART8_INT_SERVICE         - 1 : (int)UART8_INT_SERVICE
-#define UART9_INT_VECTAB_NUM         (int)UART9_INT_SERVICE           > 0 ? (int)UART9_INT_SERVICE         - 1 : (int)UART9_INT_SERVICE
-#define UART10_INT_VECTAB_NUM        (int)UART10_INT_SERVICE          > 0 ? (int)UART10_INT_SERVICE        - 1 : (int)UART10_INT_SERVICE
-#define UART11_INT_VECTAB_NUM        (int)UART11_INT_SERVICE          > 0 ? (int)UART11_INT_SERVICE        - 1 : (int)UART11_INT_SERVICE
+#define UART0_INT_VECTAB_NUM         static_cast<int>(UART0_INT_SERVICE)           > 0 ? static_cast<int>(UART0_INT_SERVICE)         - 1 : static_cast<int>(UART0_INT_SERVICE)
+#define UART1_INT_VECTAB_NUM         static_cast<int>(UART1_INT_SERVICE)           > 0 ? static_cast<int>(UART1_INT_SERVICE)         - 1 : static_cast<int>(UART1_INT_SERVICE)
+#define UART2_INT_VECTAB_NUM         static_cast<int>(UART2_INT_SERVICE)           > 0 ? static_cast<int>(UART2_INT_SERVICE)         - 1 : static_cast<int>(UART2_INT_SERVICE)
+#define UART3_INT_VECTAB_NUM         static_cast<int>(UART3_INT_SERVICE)           > 0 ? static_cast<int>(UART3_INT_SERVICE)         - 1 : static_cast<int>(UART3_INT_SERVICE)
+#define UART4_INT_VECTAB_NUM         static_cast<int>(UART4_INT_SERVICE)           > 0 ? static_cast<int>(UART4_INT_SERVICE)         - 1 : static_cast<int>(UART4_INT_SERVICE)
+#define UART5_INT_VECTAB_NUM         static_cast<int>(UART5_INT_SERVICE)           > 0 ? static_cast<int>(UART5_INT_SERVICE)         - 1 : static_cast<int>(UART5_INT_SERVICE)
+#define UART6_INT_VECTAB_NUM         static_cast<int>(UART6_INT_SERVICE)           > 0 ? static_cast<int>(UART6_INT_SERVICE)         - 1 : static_cast<int>(UART6_INT_SERVICE)
+#define UART8_INT_VECTAB_NUM         static_cast<int>(UART8_INT_SERVICE)           > 0 ? static_cast<int>(UART8_INT_SERVICE)         - 1 : static_cast<int>(UART8_INT_SERVICE)
+#define UART9_INT_VECTAB_NUM         static_cast<int>(UART9_INT_SERVICE)           > 0 ? static_cast<int>(UART9_INT_SERVICE)         - 1 : static_cast<int>(UART9_INT_SERVICE)
+#define UART10_INT_VECTAB_NUM        static_cast<int>(UART10_INT_SERVICE)          > 0 ? static_cast<int>(UART10_INT_SERVICE)        - 1 : static_cast<int>(UART10_INT_SERVICE)
+#define UART11_INT_VECTAB_NUM        static_cast<int>(UART11_INT_SERVICE)          > 0 ? static_cast<int>(UART11_INT_SERVICE)        - 1 : static_cast<int>(UART11_INT_SERVICE)
 
 #endif

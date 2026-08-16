@@ -6,7 +6,7 @@
 
 #include "vehicle_types.h"
 
-typedef struct
+struct VehicleEncoder
 {
     int8_t forward_sign;
     float meter_per_count;
@@ -17,7 +17,7 @@ typedef struct
     uint32_t invalid_sample_count;
     bool configured;
     bool initialized;
-} VehicleEncoder;
+};
 
 int32_t vehicle_encoder_delta16(uint16_t current_count,
                                 uint16_t previous_count);

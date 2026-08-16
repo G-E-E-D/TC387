@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef enum
+enum VehicleState
 {
     VEHICLE_STATE_BOOT = 0,
     VEHICLE_STATE_SENSOR_CALIBRATION,
@@ -16,25 +16,25 @@ typedef enum
     VEHICLE_STATE_FINISHED,
     VEHICLE_STATE_FAULT,
     VEHICLE_STATE_CALIBRATION_MODE
-} VehicleState;
+};
 
-typedef struct
+struct Stage1ControlCommand
 {
     float target_speed_mps;
     float target_steering_rad;
     bool valid;
-} Stage1ControlCommand;
+};
 
-typedef struct
+struct WheelEncoderSample
 {
     uint64_t timestamp_us;
     int64_t count;
     int32_t delta_count;
     float speed_mps;
     bool valid;
-} WheelEncoderSample;
+};
 
-typedef struct
+struct SteeringSample
 {
     uint64_t timestamp_us;
     uint16_t raw_angle;
@@ -43,9 +43,9 @@ typedef struct
     int64_t relative_count;
     float angle_rad;
     bool valid;
-} SteeringSample;
+};
 
-typedef struct
+struct ImuSample
 {
     uint64_t timestamp_us;
     int16_t raw_acc[3];
@@ -58,9 +58,9 @@ typedef struct
     float temperature_c;
     bool accel_gyro_valid;
     bool magnetometer_valid;
-} ImuSample;
+};
 
-typedef struct
+struct VehiclePose
 {
     uint64_t timestamp_us;
     float x_m;
@@ -74,9 +74,9 @@ typedef struct
     bool stationary;
     bool wheel_slip;
     bool valid;
-} VehiclePose;
+};
 
-typedef struct
+struct PathPoint
 {
     float x;
     float y;
@@ -84,9 +84,9 @@ typedef struct
     float s;
     float curvature_forward;
     float recorded_speed;
-} PathPoint;
+};
 
-typedef struct
+struct ReverseTrackerOutput
 {
     float target_speed_mps;
     float target_steering_rad;
@@ -97,17 +97,17 @@ typedef struct
     uint32_t target_index;
     bool finished;
     bool valid;
-} ReverseTrackerOutput;
+};
 
-typedef struct
+struct VehicleActuatorCommand
 {
     float left_motor_duty;
     float right_motor_duty;
     float steering_motor_duty;
     bool immediate_stop;
-} VehicleActuatorCommand;
+};
 
-typedef struct
+struct VehicleTelemetry
 {
     VehicleState state;
     uint64_t timestamp_us;
@@ -124,6 +124,6 @@ typedef struct
     float path_length_m;
     uint32_t fault_flags;
     uint32_t latched_fault_flags;
-} VehicleTelemetry;
+};
 
 #endif

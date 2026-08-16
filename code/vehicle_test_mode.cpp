@@ -12,14 +12,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#define TEST_PAGE_COUNT                 (6U)
-#define TEST_SAMPLE_PERIOD_US          (20000ULL)
-#define TEST_DISPLAY_PERIOD_US         (100000ULL)
-#define TEST_MOTOR_ARM_HOLD_US         (2000000ULL)
-#define TEST_MOTOR_STEP_TIMEOUT_US     (2000000ULL)
-#define TEST_MOTOR_DUTY                (0.08f)
+constexpr auto TEST_PAGE_COUNT = 6U;
+constexpr auto TEST_SAMPLE_PERIOD_US = 20000ULL;
+constexpr auto TEST_DISPLAY_PERIOD_US = 100000ULL;
+constexpr auto TEST_MOTOR_ARM_HOLD_US = 2000000ULL;
+constexpr auto TEST_MOTOR_STEP_TIMEOUT_US = 2000000ULL;
+constexpr auto TEST_MOTOR_DUTY = 0.08f;
 
-typedef enum
+enum VehicleTestPage
 {
     TEST_PAGE_OVERVIEW = 0U,
     TEST_PAGE_ENCODERS,
@@ -27,9 +27,9 @@ typedef enum
     TEST_PAGE_IMU,
     TEST_PAGE_VISION,
     TEST_PAGE_MOTORS
-} VehicleTestPage;
+};
 
-typedef struct
+struct VehicleTestState
 {
     VehicleHalStatus hal;
     VehicleTestPage page;
@@ -58,7 +58,7 @@ typedef struct
     bool motor_armed;
     uint8_t motor_step;
     uint64_t motor_step_deadline_us;
-} VehicleTestState;
+};
 
 static VehicleTestState g_test;
 
@@ -67,12 +67,12 @@ static void test_line(uint8_t row, const char *format, ...)
     char line[64];
     va_list arguments;
     va_start(arguments, format);
-    (void)vsnprintf(line, sizeof(line), format, arguments);
+    static_cast<void>(vsnprintf(line, sizeof(line), format, arguments));
     va_end(arguments);
-    vehicle_hal_display_line(row, line, NULL);
+    vehicle_hal_display_line(row, line, nullptr);
 }
 
-static bool both_buttons_down(void)
+static bool both_buttons_down()
 {
     return (gpio_get_level(VEHICLE_KEY_1_PIN) == GPIO_LOW) &&
            (gpio_get_level(VEHICLE_KEY_2_PIN) == GPIO_LOW);
@@ -112,7 +112,7 @@ static void motor_output_for_step(uint8_t step)
     }
 }
 
-static void disarm_motor_test(void)
+static void disarm_motor_test()
 {
     g_test.motor_armed = false;
     g_test.motor_step = 0U;
@@ -128,10 +128,10 @@ static void sample_inputs(uint64_t now_us)
     vehicle_hal_get_rear_encoder_raw(&left_raw, &right_raw);
     if(g_test.rear_sample_seen)
     {
-        g_test.left_delta = (int16_t)(uint16_t)(left_raw -
-                                                g_test.previous_left_raw);
-        g_test.right_delta = (int16_t)(uint16_t)(right_raw -
-                                                 g_test.previous_right_raw);
+        g_test.left_delta = static_cast<int16_t>(static_cast<uint16_t>(left_raw -
+                                                g_test.previous_left_raw));
+        g_test.right_delta = static_cast<int16_t>(static_cast<uint16_t>(right_raw -
+                                                 g_test.previous_right_raw));
     }
     else
     {
@@ -150,7 +150,7 @@ static void sample_inputs(uint64_t now_us)
         g_test.steering_raw = steering_status.raw;
     }
 
-    memset(&g_test.imu, 0, sizeof(g_test.imu));
+    g_test.imu = {};
     g_test.imu_read_ok = vehicle_hal_read_imu(&g_test.imu);
 
     g_test.vision_read_ok = false;
@@ -168,15 +168,14 @@ static void sample_inputs(uint64_t now_us)
                                   g_test.previous_camera_timestamp_us;
             if(elapsed_us > 0U)
             {
-                g_test.vision_fps_x10 = (uint32_t)
-                    (((uint64_t)sequence_delta * 10000000ULL) / elapsed_us);
+                g_test.vision_fps_x10 = static_cast<uint32_t>((static_cast<uint64_t>(sequence_delta) * 10000000ULL) / elapsed_us);
             }
         }
         g_test.previous_camera_sequence = g_test.vision.camera_sequence;
         g_test.previous_camera_timestamp_us = now_us;
     }
 #else
-    (void)now_us;
+    static_cast<void>(now_us);
 #endif
 }
 
@@ -212,7 +211,7 @@ static void handle_keys(uint64_t now_us)
         }
         else if(g_test.motor_armed && ((keys & 2U) != 0U))
         {
-            g_test.motor_step = (uint8_t)((g_test.motor_step + 1U) % 7U);
+            g_test.motor_step = static_cast<uint8_t>((g_test.motor_step + 1U) % 7U);
             motor_output_for_step(g_test.motor_step);
             g_test.motor_step_deadline_us = now_us +
                                             TEST_MOTOR_STEP_TIMEOUT_US;
@@ -237,7 +236,7 @@ static void handle_keys(uint64_t now_us)
     }
 }
 
-static void render_overview(void)
+static void render_overview()
 {
     test_line(0U, "TEST 1/6  K1:NEXT");
     test_line(1U, "K2:SAFE STOP");
@@ -253,18 +252,17 @@ static void render_overview(void)
               g_test.hal.imu_ready ? 'Y' : 'N',
               g_test.hal.display_ready ? 'Y' : 'N');
     test_line(7U, "PWM SAFE (bench mode)");
-    test_line(8U, "UPTIME:%lus", (unsigned long)
-              ((vehicle_hal_now_us() - g_test.start_us) / 1000000ULL));
+    test_line(8U, "UPTIME:%lus", static_cast<unsigned long>((vehicle_hal_now_us() - g_test.start_us) / 1000000ULL));
     test_line(9U, "K1 cycle; K2 stop");
 }
 
-static void render_encoders(void)
+static void render_encoders()
 {
     test_line(0U, "TEST 2/6 ENCODERS");
-    test_line(1U, "L raw:%u d:%d", (unsigned int)g_test.left_raw,
-              (int)g_test.left_delta);
-    test_line(2U, "R raw:%u d:%d", (unsigned int)g_test.right_raw,
-              (int)g_test.right_delta);
+    test_line(1U, "L raw:%u d:%d", static_cast<unsigned int>(g_test.left_raw),
+              static_cast<int>(g_test.left_delta));
+    test_line(2U, "R raw:%u d:%d", static_cast<unsigned int>(g_test.right_raw),
+              static_cast<int>(g_test.right_delta));
     test_line(3U, "TIM6 L / TIM3 R");
     test_line(4U, "Spin wheels by hand");
     test_line(5U, "Signs: forward > 0");
@@ -274,40 +272,40 @@ static void render_encoders(void)
     test_line(9U, "K1 next  K2 stop");
 }
 
-static void render_steering(void)
+static void render_steering()
 {
     test_line(0U, "TEST 3/6 MT6701 AB");
-    test_line(1U, "ph14:%u cnt:%lld", (unsigned int)g_test.steering_raw,
-              (long long)g_test.steering_status.continuous_count);
-    test_line(2U, "T5:%u d:%ld", (unsigned int)
-              g_test.steering_status.timer_count, (long)
-              g_test.steering_status.last_hardware_delta);
+    test_line(1U, "ph14:%u cnt:%lld", static_cast<unsigned int>(g_test.steering_raw),
+              static_cast<long long>(g_test.steering_status.continuous_count));
+    test_line(2U, "T5:%u d:%ld", static_cast<unsigned int>(
+              g_test.steering_status.timer_count), static_cast<long>(
+              g_test.steering_status.last_hardware_delta));
     test_line(3U, "SRC A:P10.3 D:P10.1");
     test_line(4U, "B:P10.2 Z:P10.5");
     test_line(5U, "A:%u B:%u Z:%u D:%u",
-              (unsigned int)g_test.steering_status.a_level,
-              (unsigned int)g_test.steering_status.b_level,
-              (unsigned int)g_test.steering_status.z_level,
-              (unsigned int)g_test.steering_status.dir_level);
+              static_cast<unsigned int>(g_test.steering_status.a_level),
+              static_cast<unsigned int>(g_test.steering_status.b_level),
+              static_cast<unsigned int>(g_test.steering_status.z_level),
+              static_cast<unsigned int>(g_test.steering_status.dir_level));
     test_line(6U, "IDX:%lu SEEN:%c",
-              (unsigned long)g_test.steering_status.index_pulse_count,
+              static_cast<unsigned long>(g_test.steering_status.index_pulse_count),
               g_test.steering_status.index_seen ? 'Y' : 'N');
     if(g_test.steering_status.last_index_interval_valid)
     {
-        test_line(7U, "dZ:%lld", (long long)
-                  g_test.steering_status.last_index_interval_count);
+        test_line(7U, "dZ:%lld", static_cast<long long>(
+                  g_test.steering_status.last_index_interval_count));
     }
     else
     {
         test_line(7U, "dZ:wait next Z");
     }
-    test_line(8U, "SW:%lu/%lu Z:no reset", (unsigned long)
-              g_test.steering_status.invalid_transition_count,
-              (unsigned long)g_test.steering_status.dir_mismatch_count);
+    test_line(8U, "SW:%lu/%lu Z:no reset", static_cast<unsigned long>(
+              g_test.steering_status.invalid_transition_count),
+              static_cast<unsigned long>(g_test.steering_status.dir_mismatch_count));
     test_line(9U, "K1 next  K2 stop");
 }
 
-static void render_imu(void)
+static void render_imu()
 {
     test_line(0U, "TEST 4/6 IMU");
     test_line(1U, "A %d %d %d", g_test.imu.acceleration[0],
@@ -326,48 +324,48 @@ static void render_imu(void)
     test_line(9U, "K1 next  K2 stop");
 }
 
-static void render_vision(void)
+static void render_vision()
 {
     const vision_tag_result_t *result = &g_test.vision.result;
     test_line(0U, "TEST 5/6 VISION");
     test_line(1U, "READ:%c SEQ:%lu FPSx10:%lu",
               g_test.vision_read_ok ? 'Y' : 'N',
-              (unsigned long)g_test.vision.camera_sequence,
-              (unsigned long)g_test.vision_fps_x10);
-    test_line(2U, "D:%u V:%u P:%u L:%u", (unsigned int)result->detected,
-              (unsigned int)result->valid, (unsigned int)result->predicted,
-              (unsigned int)result->lost_frames);
-    test_line(3U, "CX:%d EX:%d Q:%d", (int)result->center_x,
-              (int)result->error_x_px, (int)result->error_x_q15);
-    test_line(4U, "SIZE:%u CONF:%u", (unsigned int)result->size_px,
-              (unsigned int)result->confidence);
-    test_line(5U, "GRAY:%u/%u/%u", (unsigned int)result->gray_p10,
-              (unsigned int)result->gray_p50, (unsigned int)result->gray_p90);
-    test_line(6U, "SAT:%u C:%u", (unsigned int)result->saturated_permille,
-              (unsigned int)result->tag_contrast);
-    test_line(7U, "PROC:%lu us", (unsigned long)g_test.vision.process_us_last);
+              static_cast<unsigned long>(g_test.vision.camera_sequence),
+              static_cast<unsigned long>(g_test.vision_fps_x10));
+    test_line(2U, "D:%u V:%u P:%u L:%u", static_cast<unsigned int>(result->detected),
+              static_cast<unsigned int>(result->valid), static_cast<unsigned int>(result->predicted),
+              static_cast<unsigned int>(result->lost_frames));
+    test_line(3U, "CX:%d EX:%d Q:%d", static_cast<int>(result->center_x),
+              static_cast<int>(result->error_x_px), static_cast<int>(result->error_x_q15));
+    test_line(4U, "SIZE:%u CONF:%u", static_cast<unsigned int>(result->size_px),
+              static_cast<unsigned int>(result->confidence));
+    test_line(5U, "GRAY:%u/%u/%u", static_cast<unsigned int>(result->gray_p10),
+              static_cast<unsigned int>(result->gray_p50), static_cast<unsigned int>(result->gray_p90));
+    test_line(6U, "SAT:%u C:%u", static_cast<unsigned int>(result->saturated_permille),
+              static_cast<unsigned int>(result->tag_contrast));
+    test_line(7U, "PROC:%lu us", static_cast<unsigned long>(g_test.vision.process_us_last));
     test_line(8U, "EXPECT 188x120 50FPS");
     test_line(9U, "K1 next  K2 stop");
 }
 
-static void render_motors(void)
+static void render_motors()
 {
     const char *state = g_test.motor_armed ? "ARMED" : "SAFE";
     test_line(0U, "TEST 6/6 MOTORS %s", state);
     test_line(1U, "hold K1+K2 2s arm");
     test_line(2U, "K2 step; K1 disarm");
-    test_line(3U, "STEP:%u DUTY:%.2f", (unsigned int)g_test.motor_step,
-              (double)TEST_MOTOR_DUTY);
+    test_line(3U, "STEP:%u DUTY:%.2f", static_cast<unsigned int>(g_test.motor_step),
+              static_cast<double>(TEST_MOTOR_DUTY));
     test_line(4U, "1 L+ 2 L- 3 R+");
     test_line(5U, "4 R- 5 S+ 6 S-");
     test_line(6U, "each step timeout 2s");
-    test_line(7U, "ENC d:%d/%d", (int)g_test.left_delta,
-              (int)g_test.right_delta);
+    test_line(7U, "ENC d:%d/%d", static_cast<int>(g_test.left_delta),
+              static_cast<int>(g_test.right_delta));
     test_line(8U, "K1 stop; auto 2s");
     test_line(9U, "off ground only");
 }
 
-static void render_page(void)
+static void render_page()
 {
     switch(g_test.page)
     {
@@ -396,9 +394,9 @@ static void render_page(void)
     }
 }
 
-bool vehicle_test_mode_init(void)
+bool vehicle_test_mode_init()
 {
-    memset(&g_test, 0, sizeof(g_test));
+    g_test = {};
     g_test.hal = vehicle_hal_init();
     vision_shared_init();
 #if VEHICLE_VISION_ENABLE
@@ -413,7 +411,7 @@ bool vehicle_test_mode_init(void)
     return g_test.hal.display_ready;
 }
 
-void vehicle_test_mode_process(void)
+void vehicle_test_mode_process()
 {
     uint64_t now_us = vehicle_hal_now_us();
     uint32_t catchup = 0U;

@@ -9,11 +9,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#define VEHICLE_PWM_DUTY_MAX_U32       (10000U)
-#define VEHICLE_UART_TX_FIFO_LIMIT     (15U)
-#define VEHICLE_IMU_FROZEN_LIMIT       \
-    ((uint32_t)(VEHICLE_SENSOR_TIMEOUT_US / VEHICLE_ESTIMATOR_PERIOD_US) + 1U)
-#define VEHICLE_ISR_WATCHDOG_TICKS     (30U)
+constexpr auto VEHICLE_PWM_DUTY_MAX_U32 = 10000U;
+constexpr auto VEHICLE_UART_TX_FIFO_LIMIT = 15U;
+constexpr auto VEHICLE_IMU_FROZEN_LIMIT =
+    static_cast<uint32_t>(VEHICLE_SENSOR_TIMEOUT_US / VEHICLE_ESTIMATOR_PERIOD_US) +
+    1U;
+constexpr auto VEHICLE_ISR_WATCHDOG_TICKS = 30U;
 
 static volatile uint32_t g_fast_tick_count;
 static volatile uint32_t g_control_heartbeat_ticks;
@@ -52,7 +53,7 @@ static uint32_t duty_to_counts(float duty)
         return 0U;
     }
     magnitude = vehicle_clampf(magnitude, 0.0f, 1.0f);
-    return (uint32_t)(magnitude * (float)VEHICLE_PWM_DUTY_MAX_U32 + 0.5f);
+    return static_cast<uint32_t>(magnitude * static_cast<float>(VEHICLE_PWM_DUTY_MAX_U32) + 0.5f);
 }
 
 static void set_motor(pwm_channel_enum pwm_pin, gpio_pin_enum direction_pin,
@@ -85,7 +86,7 @@ static void set_raw_test_motor(pwm_channel_enum pwm_pin,
 }
 
 #if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-static uint8_t mt6701_ab_read_state(void)
+static uint8_t mt6701_ab_read_state()
 {
     uint8_t state = 0U;
     if(gpio_get_level(VEHICLE_MT6701_AB_A_PIN) == GPIO_HIGH)
@@ -101,7 +102,7 @@ static uint8_t mt6701_ab_read_state(void)
 
 static int8_t mt6701_ab_transition_delta(uint8_t previous, uint8_t current)
 {
-    uint8_t transition = (uint8_t)((previous << 2U) | current);
+    uint8_t transition = static_cast<uint8_t>((previous << 2U) | current);
     switch(transition)
     {
         case 0x01U:
@@ -130,7 +131,7 @@ static uint8_t mt6701_ab_is_active(uint8_t level, uint8_t active_high)
 }
 #endif
 
-void vehicle_hal_force_safe_outputs(void)
+void vehicle_hal_force_safe_outputs()
 {
     pwm_set_duty(VEHICLE_LEFT_PWM_PIN, 0U);
     pwm_set_duty(VEHICLE_RIGHT_PWM_PIN, 0U);
@@ -140,10 +141,10 @@ void vehicle_hal_force_safe_outputs(void)
     gpio_set_level(VEHICLE_STEERING_DIRECTION_PIN, GPIO_LOW);
 }
 
-VehicleHalStatus vehicle_hal_init(void)
+VehicleHalStatus vehicle_hal_init()
 {
     VehicleHalStatus status;
-    memset(&status, 0, sizeof(status));
+    status = {};
 
     gpio_init(VEHICLE_LEFT_DIRECTION_PIN, GPO, GPIO_LOW, GPO_PUSH_PULL);
     gpio_init(VEHICLE_RIGHT_DIRECTION_PIN, GPO, GPIO_LOW, GPO_PUSH_PULL);
@@ -181,8 +182,8 @@ VehicleHalStatus vehicle_hal_init(void)
     gpio_init(VEHICLE_MT6701_AB_B_PIN, GPI, GPIO_LOW, GPI_PULL_UP);
     gpio_init(VEHICLE_MT6701_AB_Z_PIN, GPI, GPIO_LOW, GPI_PULL_UP);
     g_mt6701_ab_raw = 0U;
-    g_mt6701_ab_timer_previous = (uint16_t)encoder_get_count(
-        VEHICLE_MT6701_AB_COUNTER_INDEX);
+    g_mt6701_ab_timer_previous = static_cast<uint16_t>(encoder_get_count(
+        VEHICLE_MT6701_AB_COUNTER_INDEX));
     g_mt6701_ab_last_hardware_delta = 0;
     g_mt6701_ab_continuous_count = 0LL;
     g_mt6701_ab_last_index_count = 0LL;
@@ -222,8 +223,8 @@ VehicleHalStatus vehicle_hal_init(void)
     system_start();
     {
         Ifx_STM *stm = IfxStm_getAddress((IfxStm_Index)IfxCpu_getCoreId());
-        g_time_start_ticks = (uint64_t)IfxStm_get(stm);
-        g_time_frequency_hz = (uint32_t)IfxStm_getFrequency(stm);
+        g_time_start_ticks = static_cast<uint64_t>(IfxStm_get(stm));
+        g_time_frequency_hz = static_cast<uint32_t>(IfxStm_getFrequency(stm));
     }
     g_time_initialized = true;
     g_fast_tick_count = 0U;
@@ -240,7 +241,7 @@ VehicleHalStatus vehicle_hal_init(void)
     return status;
 }
 
-uint64_t vehicle_hal_now_us(void)
+uint64_t vehicle_hal_now_us()
 {
     Ifx_STM *stm;
     uint64_t elapsed_ticks;
@@ -251,15 +252,15 @@ uint64_t vehicle_hal_now_us(void)
         return 0U;
     }
     stm = IfxStm_getAddress((IfxStm_Index)IfxCpu_getCoreId());
-    elapsed_ticks = (uint64_t)IfxStm_get(stm) - g_time_start_ticks;
-    seconds = elapsed_ticks / (uint64_t)g_time_frequency_hz;
-    remainder = elapsed_ticks % (uint64_t)g_time_frequency_hz;
+    elapsed_ticks = static_cast<uint64_t>(IfxStm_get(stm)) - g_time_start_ticks;
+    seconds = elapsed_ticks / static_cast<uint64_t>(g_time_frequency_hz);
+    remainder = elapsed_ticks % static_cast<uint64_t>(g_time_frequency_hz);
     return seconds * UINT64_C(1000000) +
            (remainder * UINT64_C(1000000)) /
-           (uint64_t)g_time_frequency_hz;
+           static_cast<uint64_t>(g_time_frequency_hz);
 }
 
-void vehicle_hal_timer_tick_isr(void)
+void vehicle_hal_timer_tick_isr()
 {
     if(g_fast_tick_count < UINT32_MAX)
     {
@@ -284,7 +285,7 @@ void vehicle_hal_timer_tick_isr(void)
     }
 }
 
-bool vehicle_hal_take_fast_tick(void)
+bool vehicle_hal_take_fast_tick()
 {
     bool available = g_fast_tick_count > 0U;
     if(available)
@@ -294,18 +295,18 @@ bool vehicle_hal_take_fast_tick(void)
     return available;
 }
 
-void vehicle_hal_service_control_watchdog(void)
+void vehicle_hal_service_control_watchdog()
 {
     g_control_heartbeat_ticks = 0U;
     g_control_watchdog_armed = true;
 }
 
-bool vehicle_hal_control_watchdog_expired(void)
+bool vehicle_hal_control_watchdog_expired()
 {
     return g_control_watchdog_fault;
 }
 
-bool vehicle_hal_clear_control_watchdog_fault(void)
+bool vehicle_hal_clear_control_watchdog_fault()
 {
     if(g_control_heartbeat_ticks > VEHICLE_ISR_WATCHDOG_TICKS)
     {
@@ -315,20 +316,20 @@ bool vehicle_hal_clear_control_watchdog_fault(void)
     return true;
 }
 
-void vehicle_hal_capture_encoder_counts(void)
+void vehicle_hal_capture_encoder_counts()
 {
     int16_t left_delta = encoder_get_count(VEHICLE_LEFT_ENCODER_INDEX);
     int16_t right_delta = encoder_get_count(VEHICLE_RIGHT_ENCODER_INDEX);
     encoder_clear_count(VEHICLE_LEFT_ENCODER_INDEX);
     encoder_clear_count(VEHICLE_RIGHT_ENCODER_INDEX);
-    g_left_encoder_raw = (uint16_t)(g_left_encoder_raw + (uint16_t)left_delta);
-    g_right_encoder_raw = (uint16_t)(g_right_encoder_raw + (uint16_t)right_delta);
+    g_left_encoder_raw = static_cast<uint16_t>(g_left_encoder_raw + static_cast<uint16_t>(left_delta));
+    g_right_encoder_raw = static_cast<uint16_t>(g_right_encoder_raw + static_cast<uint16_t>(right_delta));
 #if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
     {
-        uint16_t timer_current = (uint16_t)encoder_get_count(
-            VEHICLE_MT6701_AB_COUNTER_INDEX);
-        int32_t hardware_delta = (int32_t)timer_current -
-            (int32_t)g_mt6701_ab_timer_previous;
+        uint16_t timer_current = static_cast<uint16_t>(encoder_get_count(
+            VEHICLE_MT6701_AB_COUNTER_INDEX));
+        int32_t hardware_delta = static_cast<int32_t>(timer_current) -
+            static_cast<int32_t>(g_mt6701_ab_timer_previous);
         uint8_t current_state = mt6701_ab_read_state();
         int8_t ab_delta = mt6701_ab_transition_delta(
             g_mt6701_ab_state, current_state);
@@ -345,13 +346,13 @@ void vehicle_hal_capture_encoder_counts(void)
          * read and a clear operation.  Mechanical steering is many orders of
          * magnitude below the 32768-edge-per-capture ambiguity limit.
          */
-        if(hardware_delta > (int32_t)INT16_MAX)
+        if(hardware_delta > static_cast<int32_t>(INT16_MAX))
         {
-            hardware_delta -= (int32_t)65536;
+            hardware_delta -= static_cast<int32_t>(65536);
         }
-        else if(hardware_delta < (int32_t)INT16_MIN)
+        else if(hardware_delta < static_cast<int32_t>(INT16_MIN))
         {
-            hardware_delta += (int32_t)65536;
+            hardware_delta += static_cast<int32_t>(65536);
         }
         g_mt6701_ab_timer_previous = timer_current;
         g_mt6701_ab_last_hardware_delta = hardware_delta;
@@ -381,9 +382,9 @@ void vehicle_hal_capture_encoder_counts(void)
         }
         if(hardware_delta != 0)
         {
-            g_mt6701_ab_continuous_count += (int64_t)hardware_delta;
-            g_mt6701_ab_raw = (uint16_t)((uint64_t)
-                g_mt6701_ab_continuous_count & UINT64_C(0x3FFF));
+            g_mt6701_ab_continuous_count += static_cast<int64_t>(hardware_delta);
+            g_mt6701_ab_raw = static_cast<uint16_t>(static_cast<uint64_t>(
+                g_mt6701_ab_continuous_count) & UINT64_C(0x3FFF));
         }
         if((z_active != 0U) && (g_mt6701_ab_z_active == 0U))
         {
@@ -408,17 +409,17 @@ void vehicle_hal_capture_encoder_counts(void)
 
 void vehicle_hal_get_rear_encoder_raw(uint16_t *left, uint16_t *right)
 {
-    if(left != NULL)
+    if(left != nullptr)
     {
         *left = g_left_encoder_raw;
     }
-    if(right != NULL)
+    if(right != nullptr)
     {
         *right = g_right_encoder_raw;
     }
 }
 
-void vehicle_hal_zero_rear_encoder_raw(void)
+void vehicle_hal_zero_rear_encoder_raw()
 {
     encoder_clear_count(VEHICLE_LEFT_ENCODER_INDEX);
     encoder_clear_count(VEHICLE_RIGHT_ENCODER_INDEX);
@@ -431,17 +432,17 @@ bool vehicle_hal_read_mt6701_ssi(uint32_t *frame_24bits)
 #if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_SSI
     uint8_t transmit[3] = {0U, 0U, 0U};
     uint8_t receive[3] = {0U, 0U, 0U};
-    if(frame_24bits == NULL)
+    if(frame_24bits == nullptr)
     {
         return false;
     }
     spi_transfer_8bit(VEHICLE_MT6701_SPI_INDEX, transmit, receive, 3U);
-    *frame_24bits = ((uint32_t)receive[0] << 16U) |
-                    ((uint32_t)receive[1] << 8U) |
-                    (uint32_t)receive[2];
+    *frame_24bits = (static_cast<uint32_t>(receive[0]) << 16U) |
+                    (static_cast<uint32_t>(receive[1]) << 8U) |
+                    static_cast<uint32_t>(receive[2]);
     return true;
 #else
-    (void)frame_24bits;
+    static_cast<void>(frame_24bits);
     return false;
 #endif
 }
@@ -449,13 +450,13 @@ bool vehicle_hal_read_mt6701_ssi(uint32_t *frame_24bits)
 bool vehicle_hal_get_mt6701_ab_raw(uint16_t *synthetic_raw)
 {
 #if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-    if(synthetic_raw != NULL)
+    if(synthetic_raw != nullptr)
     {
         *synthetic_raw = g_mt6701_ab_raw;
         return true;
     }
 #else
-    (void)synthetic_raw;
+    static_cast<void>(synthetic_raw);
 #endif
     return false;
 }
@@ -463,7 +464,7 @@ bool vehicle_hal_get_mt6701_ab_raw(uint16_t *synthetic_raw)
 bool vehicle_hal_get_mt6701_ab_status(VehicleMt6701AbStatus *status)
 {
 #if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-    if(status == NULL)
+    if(status == nullptr)
     {
         return false;
     }
@@ -485,7 +486,7 @@ bool vehicle_hal_get_mt6701_ab_status(VehicleMt6701AbStatus *status)
         g_mt6701_ab_last_index_interval_valid;
     return true;
 #else
-    (void)status;
+    static_cast<void>(status);
     return false;
 #endif
 }
@@ -494,7 +495,7 @@ bool vehicle_hal_read_imu(VehicleHalImuRaw *raw)
 {
     int16_t current_motion[7];
     bool unchanged;
-    if(raw == NULL)
+    if(raw == nullptr)
     {
         return false;
     }
@@ -550,25 +551,25 @@ void vehicle_hal_get_imu_scale(float *acceleration_mps2_per_lsb,
                                float *temperature_c_per_lsb,
                                float *temperature_offset_c)
 {
-    if(acceleration_mps2_per_lsb != NULL)
+    if(acceleration_mps2_per_lsb != nullptr)
     {
         *acceleration_mps2_per_lsb = 9.80665f /
             imu963ra_transition_factor[0];
     }
-    if(angular_rate_radps_per_lsb != NULL)
+    if(angular_rate_radps_per_lsb != nullptr)
     {
         *angular_rate_radps_per_lsb = (3.14159265358979323846f / 180.0f) /
             imu963ra_transition_factor[1];
     }
-    if(magnetic_gauss_per_lsb != NULL)
+    if(magnetic_gauss_per_lsb != nullptr)
     {
         *magnetic_gauss_per_lsb = 1.0f / imu963ra_transition_factor[2];
     }
-    if(temperature_c_per_lsb != NULL)
+    if(temperature_c_per_lsb != nullptr)
     {
         *temperature_c_per_lsb = 1.0f / 256.0f;
     }
-    if(temperature_offset_c != NULL)
+    if(temperature_offset_c != nullptr)
     {
         *temperature_offset_c = 25.0f;
     }
@@ -578,7 +579,7 @@ void vehicle_hal_apply_actuators(const VehicleActuatorCommand *command,
                                  const VehicleCalibration *calibration,
                                  bool power_allowed)
 {
-    if((command == NULL) || (calibration == NULL) || !power_allowed ||
+    if((command == nullptr) || (calibration == nullptr) || !power_allowed ||
        command->immediate_stop || g_control_watchdog_fault)
     {
         vehicle_hal_force_safe_outputs();
@@ -627,7 +628,7 @@ void vehicle_hal_apply_calibration_test(VehicleHalTestMotor motor,
 
 bool vehicle_hal_uart_read_byte(uint8_t *byte)
 {
-    if(byte == NULL)
+    if(byte == nullptr)
     {
         return false;
     }
@@ -640,7 +641,7 @@ bool vehicle_hal_uart_read_byte(uint8_t *byte)
 
 bool vehicle_hal_uart_try_write_byte(uint8_t byte, void *context)
 {
-    (void)context;
+    static_cast<void>(context);
     if(IfxAsclin_getTxFifoFillLevel(uart0_handle.asclin) >=
        VEHICLE_UART_TX_FIFO_LIMIT)
     {
@@ -652,21 +653,21 @@ bool vehicle_hal_uart_try_write_byte(uint8_t byte, void *context)
 
 void vehicle_hal_display_line(uint8_t row, const char *text, void *context)
 {
-    (void)context;
+    static_cast<void>(context);
 #if VEHICLE_IPS200_ENABLE
     char padded[31];
-    if(text != NULL)
+    if(text != nullptr)
     {
-        (void)snprintf(padded, sizeof(padded), "%-29.29s", text);
+        static_cast<void>(snprintf(padded, sizeof(padded), "%-29.29s", text));
         ips200_show_string(0U, (uint16)(row * 16U), padded);
     }
 #else
-    (void)row;
-    (void)text;
+    static_cast<void>(row);
+    static_cast<void>(text);
 #endif
 }
 
-uint8_t vehicle_hal_read_key_events(void)
+uint8_t vehicle_hal_read_key_events()
 {
     uint8_t current = 0U;
     uint8_t pressed;
@@ -678,7 +679,8 @@ uint8_t vehicle_hal_read_key_events(void)
     {
         current |= 2U;
     }
-    pressed = (uint8_t)(current & (uint8_t)~g_previous_keys);
+    pressed = static_cast<uint8_t>(current &
+                                   static_cast<uint8_t>(~g_previous_keys));
     g_previous_keys = current;
     return pressed;
 }

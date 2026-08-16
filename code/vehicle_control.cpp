@@ -7,7 +7,7 @@
 #include "vehicle_config.h"
 #include "vehicle_math.h"
 
-#define VEHICLE_CONTROL_OUTPUT_EPSILON (0.000001f)
+constexpr auto VEHICLE_CONTROL_OUTPUT_EPSILON = 0.000001f;
 
 static int8_t sign_with_deadband(float value, float deadband)
 {
@@ -24,7 +24,7 @@ static int8_t sign_with_deadband(float value, float deadband)
 
 static bool wheel_config_is_valid(const VehicleWheelControllerConfig *config)
 {
-    return (config != NULL) && isfinite(config->kp) &&
+    return (config != nullptr) && isfinite(config->kp) &&
            isfinite(config->ki) && isfinite(config->feedforward) &&
            isfinite(config->integral_limit) &&
            isfinite(config->output_limit) &&
@@ -44,7 +44,7 @@ static bool wheel_config_is_valid(const VehicleWheelControllerConfig *config)
 static bool steering_config_is_valid(
     const VehicleSteeringControllerConfig *config)
 {
-    return (config != NULL) && isfinite(config->kp) &&
+    return (config != nullptr) && isfinite(config->kp) &&
            isfinite(config->ki) && isfinite(config->kd) &&
            isfinite(config->integral_limit) &&
            isfinite(config->output_limit) &&
@@ -73,7 +73,7 @@ static int steering_table_angle_direction(
     size_t index;
     int direction;
 
-    if((points == NULL) || (count < 2U))
+    if((points == nullptr) || (count < 2U))
     {
         return 0;
     }
@@ -115,7 +115,7 @@ static bool steering_tables_are_usable(const SteeringCalibrationTables *tables)
     int left_direction;
     int right_direction;
 
-    if(tables == NULL)
+    if(tables == nullptr)
     {
         return false;
     }
@@ -131,9 +131,9 @@ static const SteeringCalibrationPoint *steering_points_for_approach(
     VehicleSteeringApproach approach,
     size_t *count)
 {
-    if((tables == NULL) || (count == NULL))
+    if((tables == nullptr) || (count == nullptr))
     {
-        return NULL;
+        return nullptr;
     }
     if(approach == VEHICLE_STEERING_APPROACH_FROM_RIGHT)
     {
@@ -146,24 +146,24 @@ static const SteeringCalibrationPoint *steering_points_for_approach(
 
 static int64_t rounded_i64(double value)
 {
-    if(value >= (double)INT64_MAX)
+    if(value >= static_cast<double>(INT64_MAX))
     {
         return INT64_MAX;
     }
-    if(value <= (double)INT64_MIN)
+    if(value <= static_cast<double>(INT64_MIN))
     {
         return INT64_MIN;
     }
     if(value >= 0.0)
     {
-        return (int64_t)(value + 0.5);
+        return static_cast<int64_t>(value + 0.5);
     }
-    return (int64_t)(value - 0.5);
+    return static_cast<int64_t>(value - 0.5);
 }
 
 static void drive_output_zero(VehicleDriveControlOutput *output)
 {
-    if(output != NULL)
+    if(output != nullptr)
     {
         output->left_target_speed_mps = 0.0f;
         output->right_target_speed_mps = 0.0f;
@@ -175,7 +175,7 @@ static void drive_output_zero(VehicleDriveControlOutput *output)
 
 static void steering_output_zero(VehicleSteeringControlOutput *output)
 {
-    if(output != NULL)
+    if(output != nullptr)
     {
         output->measured_angle_rad = 0.0f;
         output->target_count = 0;
@@ -189,7 +189,7 @@ static void steering_output_zero(VehicleSteeringControlOutput *output)
 
 void vehicle_wheel_controller_default_config(VehicleWheelControllerConfig *config)
 {
-    if(config != NULL)
+    if(config != nullptr)
     {
         config->kp = WHEEL_SPEED_KP;
         config->ki = WHEEL_SPEED_KI;
@@ -211,12 +211,12 @@ void vehicle_wheel_speed_controller_init(VehicleWheelSpeedController *controller
     VehicleWheelControllerConfig default_config;
     const VehicleWheelControllerConfig *selected_config;
 
-    if(controller == NULL)
+    if(controller == nullptr)
     {
         return;
     }
     vehicle_wheel_controller_default_config(&default_config);
-    selected_config = (config != NULL) ? config : &default_config;
+    selected_config = (config != nullptr) ? config : &default_config;
     controller->config = *selected_config;
     controller->start_duty_forward = start_duty_forward;
     controller->start_duty_reverse = start_duty_reverse;
@@ -231,7 +231,7 @@ void vehicle_wheel_speed_controller_init(VehicleWheelSpeedController *controller
 
 void vehicle_wheel_speed_controller_reset(VehicleWheelSpeedController *controller)
 {
-    if(controller != NULL)
+    if(controller != nullptr)
     {
         controller->integral = 0.0f;
         controller->output = 0.0f;
@@ -252,7 +252,7 @@ float vehicle_wheel_speed_controller_update(VehicleWheelSpeedController *control
     float proposed_output;
     float desired_output;
 
-    if(controller == NULL)
+    if(controller == nullptr)
     {
         return 0.0f;
     }
@@ -371,7 +371,7 @@ bool vehicle_control_compute_wheel_targets_from_curvature(
     float yaw_rate_radps;
     float half_speed_difference;
 
-    if((left_target_speed_mps == NULL) || (right_target_speed_mps == NULL))
+    if((left_target_speed_mps == nullptr) || (right_target_speed_mps == nullptr))
     {
         return false;
     }
@@ -403,7 +403,7 @@ bool vehicle_control_compute_wheel_targets(float center_speed_mps,
 {
     float curvature_per_m;
 
-    if((left_target_speed_mps == NULL) || (right_target_speed_mps == NULL))
+    if((left_target_speed_mps == nullptr) || (right_target_speed_mps == nullptr))
     {
         return false;
     }
@@ -431,18 +431,18 @@ void vehicle_drive_controller_init(VehicleDriveController *controller,
     float right_forward;
     float right_reverse;
 
-    if(controller == NULL)
+    if(controller == nullptr)
     {
         return;
     }
     valid = vehicle_calibration_is_valid(calibration, tables);
-    left_forward = (calibration != NULL)
+    left_forward = (calibration != nullptr)
         ? calibration->left_motor_start_duty_forward : 0.0f;
-    left_reverse = (calibration != NULL)
+    left_reverse = (calibration != nullptr)
         ? calibration->left_motor_start_duty_reverse : 0.0f;
-    right_forward = (calibration != NULL)
+    right_forward = (calibration != nullptr)
         ? calibration->right_motor_start_duty_forward : 0.0f;
-    right_reverse = (calibration != NULL)
+    right_reverse = (calibration != nullptr)
         ? calibration->right_motor_start_duty_reverse : 0.0f;
     vehicle_wheel_speed_controller_init(&controller->left, left_config,
                                         left_forward, left_reverse, valid);
@@ -454,7 +454,7 @@ void vehicle_drive_controller_init(VehicleDriveController *controller,
 
 void vehicle_drive_controller_reset(VehicleDriveController *controller)
 {
-    if(controller != NULL)
+    if(controller != nullptr)
     {
         vehicle_wheel_speed_controller_reset(&controller->left);
         vehicle_wheel_speed_controller_reset(&controller->right);
@@ -472,7 +472,7 @@ void vehicle_drive_controller_update(VehicleDriveController *controller,
     bool targets_valid;
 
     drive_output_zero(output);
-    if((controller == NULL) || (output == NULL))
+    if((controller == nullptr) || (output == nullptr))
     {
         return;
     }
@@ -503,7 +503,7 @@ void vehicle_drive_controller_update(VehicleDriveController *controller,
 void vehicle_steering_controller_default_config(
     VehicleSteeringControllerConfig *config)
 {
-    if(config != NULL)
+    if(config != nullptr)
     {
         config->kp = STEERING_KP;
         config->ki = STEERING_KI;
@@ -528,7 +528,7 @@ bool vehicle_steering_table_count_to_angle(
 {
     size_t index;
 
-    if(angle_rad == NULL)
+    if(angle_rad == nullptr)
     {
         return false;
     }
@@ -556,16 +556,16 @@ bool vehicle_steering_table_count_to_angle(
             double ratio;
             double angle;
 
-            count_span = (double)points[index].continuous_count -
-                         (double)points[index - 1U].continuous_count;
-            count_offset = (double)continuous_count -
-                           (double)points[index - 1U].continuous_count;
+            count_span = static_cast<double>(points[index].continuous_count) -
+                         static_cast<double>(points[index - 1U].continuous_count);
+            count_offset = static_cast<double>(continuous_count) -
+                           static_cast<double>(points[index - 1U].continuous_count);
             ratio = count_offset / count_span;
-            angle = (double)points[index - 1U].equivalent_steering_angle_rad +
+            angle = static_cast<double>(points[index - 1U].equivalent_steering_angle_rad) +
                     ratio *
-                    ((double)points[index].equivalent_steering_angle_rad -
-                     (double)points[index - 1U].equivalent_steering_angle_rad);
-            *angle_rad = (float)angle;
+                    (static_cast<double>(points[index].equivalent_steering_angle_rad) -
+                     static_cast<double>(points[index - 1U].equivalent_steering_angle_rad));
+            *angle_rad = static_cast<float>(angle);
             return isfinite(*angle_rad) != 0;
         }
     }
@@ -581,7 +581,7 @@ bool vehicle_steering_table_angle_to_count(
     int direction;
     size_t index;
 
-    if(continuous_count == NULL)
+    if(continuous_count == nullptr)
     {
         return false;
     }
@@ -624,15 +624,15 @@ bool vehicle_steering_table_angle_to_count(
             double interpolated_count;
 
             angle_span =
-                (double)points[index].equivalent_steering_angle_rad -
-                (double)points[index - 1U].equivalent_steering_angle_rad;
-            angle_offset = (double)angle_rad -
-                (double)points[index - 1U].equivalent_steering_angle_rad;
+                static_cast<double>(points[index].equivalent_steering_angle_rad) -
+                static_cast<double>(points[index - 1U].equivalent_steering_angle_rad);
+            angle_offset = static_cast<double>(angle_rad) -
+                static_cast<double>(points[index - 1U].equivalent_steering_angle_rad);
             ratio = angle_offset / angle_span;
             interpolated_count =
-                (double)points[index - 1U].continuous_count + ratio *
-                ((double)points[index].continuous_count -
-                 (double)points[index - 1U].continuous_count);
+                static_cast<double>(points[index - 1U].continuous_count) + ratio *
+                (static_cast<double>(points[index].continuous_count) -
+                 static_cast<double>(points[index - 1U].continuous_count));
             *continuous_count = rounded_i64(interpolated_count);
             return true;
         }
@@ -650,30 +650,30 @@ void vehicle_steering_controller_init(
     const VehicleSteeringControllerConfig *selected_config;
     bool calibration_valid;
 
-    if(controller == NULL)
+    if(controller == nullptr)
     {
         return;
     }
     vehicle_steering_controller_default_config(&default_config);
-    selected_config = (config != NULL) ? config : &default_config;
+    selected_config = (config != nullptr) ? config : &default_config;
     controller->config = *selected_config;
     controller->calibration = calibration;
-    if(tables != NULL)
+    if(tables != nullptr)
     {
         controller->tables = *tables;
     }
     else
     {
-        controller->tables.from_left = NULL;
+        controller->tables.from_left = nullptr;
         controller->tables.from_left_count = 0U;
-        controller->tables.from_right = NULL;
+        controller->tables.from_right = nullptr;
         controller->tables.from_right_count = 0U;
     }
     calibration_valid = vehicle_calibration_is_valid(calibration, tables);
     controller->calibration_valid = calibration_valid && CALIBRATION_VALID &&
         steering_config_is_valid(selected_config) &&
         steering_tables_are_usable(tables) &&
-        (calibration != NULL) &&
+        (calibration != nullptr) &&
         isfinite(calibration->steering_start_duty_left) &&
         isfinite(calibration->steering_start_duty_right) &&
         (calibration->steering_start_duty_left >= 0.0f) &&
@@ -687,7 +687,7 @@ void vehicle_steering_controller_init(
 
 void vehicle_steering_controller_reset(VehicleSteeringController *controller)
 {
-    if(controller != NULL)
+    if(controller != nullptr)
     {
         controller->integral = 0.0f;
         controller->previous_error_rad = 0.0f;
@@ -712,7 +712,7 @@ static VehicleSteeringApproach steering_select_approach(
     double hysteresis;
     int angle_direction;
 
-    if((controller == NULL) ||
+    if((controller == nullptr) ||
        !vehicle_steering_table_angle_to_count(
            controller->tables.from_left,
            controller->tables.from_left_count,
@@ -731,27 +731,27 @@ static VehicleSteeringApproach steering_select_approach(
     {
         return VEHICLE_STEERING_APPROACH_UNKNOWN;
     }
-    hysteresis = (double)controller->config.approach_switch_hysteresis_count;
+    hysteresis = static_cast<double>(controller->config.approach_switch_hysteresis_count);
     if(controller->approach == VEHICLE_STEERING_APPROACH_FROM_LEFT)
     {
-        delta = ((double)from_left_count - (double)continuous_count) *
-                (double)angle_direction;
+        delta = (static_cast<double>(from_left_count) - static_cast<double>(continuous_count)) *
+                static_cast<double>(angle_direction);
         return (delta > hysteresis)
             ? VEHICLE_STEERING_APPROACH_FROM_RIGHT
             : VEHICLE_STEERING_APPROACH_FROM_LEFT;
     }
     if(controller->approach == VEHICLE_STEERING_APPROACH_FROM_RIGHT)
     {
-        delta = ((double)from_right_count - (double)continuous_count) *
-                (double)angle_direction;
+        delta = (static_cast<double>(from_right_count) - static_cast<double>(continuous_count)) *
+                static_cast<double>(angle_direction);
         return (delta < -hysteresis)
             ? VEHICLE_STEERING_APPROACH_FROM_LEFT
             : VEHICLE_STEERING_APPROACH_FROM_RIGHT;
     }
 
-    delta = (((double)from_left_count + (double)from_right_count) * 0.5) -
-            (double)continuous_count;
-    delta *= (double)angle_direction;
+    delta = ((static_cast<double>(from_left_count) + static_cast<double>(from_right_count)) * 0.5) -
+            static_cast<double>(continuous_count);
+    delta *= static_cast<double>(angle_direction);
     if(delta > hysteresis)
     {
         return VEHICLE_STEERING_APPROACH_FROM_RIGHT;
@@ -787,13 +787,13 @@ void vehicle_steering_controller_update(
     bool small_count_change;
 
     steering_output_zero(output);
-    if((controller == NULL) || (output == NULL))
+    if((controller == nullptr) || (output == nullptr))
     {
         return;
     }
     if(!controller->calibration_valid ||
        !steering_config_is_valid(&controller->config) ||
-       (controller->calibration == NULL) ||
+       (controller->calibration == nullptr) ||
        !isfinite(target_angle_rad) || !isfinite(dt_s) || !(dt_s > 0.0f))
     {
         vehicle_steering_controller_reset(controller);
@@ -816,7 +816,7 @@ void vehicle_steering_controller_update(
     }
     points = steering_points_for_approach(&controller->tables, approach,
                                           &point_count);
-    if((points == NULL) ||
+    if((points == nullptr) ||
        !vehicle_steering_table_angle_to_count(
            points, point_count, target_angle_rad,
            &controller->target_count))
@@ -952,9 +952,9 @@ void vehicle_steering_controller_update(
     }
 
     small_count_change = controller->previous_sample_valid &&
-        (fabs((double)continuous_count -
-              (double)controller->previous_count) <=
-         (double)controller->config.stall_count_delta);
+        (fabs(static_cast<double>(continuous_count) -
+              static_cast<double>(controller->previous_count)) <=
+         static_cast<double>(controller->config.stall_count_delta));
     if(!at_soft_limit && small_count_change &&
        (fabsf(controller->output) >= controller->config.stall_duty))
     {
@@ -981,25 +981,25 @@ void vehicle_steering_controller_update(
 bool vehicle_steering_controller_is_stalled(
     const VehicleSteeringController *controller)
 {
-    return (controller != NULL) && controller->stalled;
+    return (controller != nullptr) && controller->stalled;
 }
 
 void vehicle_control_init(VehicleControl *control,
                           const VehicleCalibration *calibration,
                           const SteeringCalibrationTables *tables)
 {
-    if(control != NULL)
+    if(control != nullptr)
     {
         vehicle_drive_controller_init(&control->drive, calibration, tables,
-                                      NULL, NULL);
+                                      nullptr, nullptr);
         vehicle_steering_controller_init(&control->steering, calibration,
-                                         tables, NULL);
+                                         tables, nullptr);
     }
 }
 
 void vehicle_control_reset(VehicleControl *control)
 {
-    if(control != NULL)
+    if(control != nullptr)
     {
         vehicle_drive_controller_reset(&control->drive);
         vehicle_steering_controller_reset(&control->steering);
@@ -1010,7 +1010,7 @@ void vehicle_control_update(VehicleControl *control,
                             const VehicleControlInput *input,
                             VehicleControlOutput *output)
 {
-    if(output != NULL)
+    if(output != nullptr)
     {
         drive_output_zero(&output->drive);
         steering_output_zero(&output->steering);
@@ -1020,7 +1020,7 @@ void vehicle_control_update(VehicleControl *control,
         output->actuators.immediate_stop = false;
         output->valid = false;
     }
-    if((control == NULL) || (input == NULL) || (output == NULL))
+    if((control == nullptr) || (input == nullptr) || (output == nullptr))
     {
         return;
     }

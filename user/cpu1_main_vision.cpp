@@ -7,7 +7,7 @@
 
 #pragma section all "cpu1_dsram"
 
-void core1_main(void)
+void core1_main()
 {
     vision_tag_config_t tracker_config;
 
@@ -23,7 +23,7 @@ void core1_main(void)
     tracker_config.follow_far_mm = 0U;
     vision_tag_tracker_init(&tracker_config);
 
-    while(TRUE)
+    while(true)
     {
         const uint8_t *frame;
         uint32_t sequence;
@@ -31,7 +31,7 @@ void core1_main(void)
         uint32_t process_us;
 
         frame = vehicle_vision_camera_acquire(&sequence);
-        if(frame == NULL)
+        if(frame == nullptr)
         {
             continue;
         }

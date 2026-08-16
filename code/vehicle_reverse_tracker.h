@@ -6,7 +6,7 @@
 
 #include "vehicle_types.h"
 
-typedef enum
+enum VehicleReverseTrackerStatus
 {
     VEHICLE_REVERSE_TRACKER_UNINITIALIZED = 0,
     VEHICLE_REVERSE_TRACKER_ACTIVE,
@@ -18,9 +18,9 @@ typedef enum
     VEHICLE_REVERSE_TRACKER_INDEX_LOST,
     VEHICLE_REVERSE_TRACKER_TRACKING_ERROR,
     VEHICLE_REVERSE_TRACKER_NUMERIC_ERROR
-} VehicleReverseTrackerStatus;
+};
 
-typedef struct
+struct VehicleReverseTrackerConfig
 {
     float wheelbase_m;
     float nominal_reverse_speed_mps;
@@ -43,9 +43,9 @@ typedef struct
     float maximum_heading_error_rad;
     uint32_t search_forward_points;
     uint32_t index_loss_limit;
-} VehicleReverseTrackerConfig;
+};
 
-typedef struct
+struct VehicleReverseTrackerInput
 {
     float x_m;
     float y_m;
@@ -53,9 +53,9 @@ typedef struct
     float speed_mps;
     float dt_s;
     bool localization_valid;
-} VehicleReverseTrackerInput;
+};
 
-typedef struct
+struct VehicleReverseTracker
 {
     VehicleReverseTrackerConfig config;
     const PathPoint *path;
@@ -67,7 +67,7 @@ typedef struct
     float previous_target_speed_mps;
     VehicleReverseTrackerStatus status;
     bool initialized;
-} VehicleReverseTracker;
+};
 
 void vehicle_reverse_tracker_default_config(
     VehicleReverseTrackerConfig *config);

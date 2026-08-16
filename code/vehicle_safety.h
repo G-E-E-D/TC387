@@ -9,7 +9,7 @@
 #include "vehicle_fault.h"
 #include "vehicle_types.h"
 
-typedef struct
+struct VehicleSafetyConfig
 {
     float encoder_max_abs_speed_mps;
     float encoder_max_acceleration_mps2;
@@ -31,9 +31,9 @@ typedef struct
     uint32_t tracker_index_loss_limit;
     float tracker_max_cross_track_error_m;
     float tracker_max_heading_error_rad;
-} VehicleSafetyConfig;
+};
 
-typedef struct
+struct VehicleSafetyInputs
 {
     uint64_t timestamp_us;
     VehicleState state;
@@ -60,9 +60,9 @@ typedef struct
     bool numeric_valid;
     const float *additional_numeric_values;
     size_t additional_numeric_value_count;
-} VehicleSafetyInputs;
+};
 
-typedef struct
+struct VehicleSafetyMonitor
 {
     VehicleSafetyConfig config;
     bool calibration_valid;
@@ -89,7 +89,7 @@ typedef struct
     bool previous_right_valid;
     bool previous_steering_valid;
     bool automatic_output_inhibited;
-} VehicleSafetyMonitor;
+};
 
 void vehicle_safety_default_config(VehicleSafetyConfig *config);
 void vehicle_safety_init(VehicleSafetyMonitor *monitor,
