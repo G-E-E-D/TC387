@@ -36,6 +36,17 @@ typedef struct
     bool magnetometer_communication_ok;
 } VehicleHalImuRaw;
 
+typedef struct
+{
+    uint16_t raw;
+    uint8_t a_level;
+    uint8_t b_level;
+    uint8_t z_level;
+    uint8_t dir_level;
+    uint32_t index_pulse_count;
+    bool index_seen;
+} VehicleMt6701AbStatus;
+
 void vehicle_hal_force_safe_outputs(void);
 VehicleHalStatus vehicle_hal_init(void);
 uint64_t vehicle_hal_now_us(void);
@@ -49,6 +60,7 @@ void vehicle_hal_get_rear_encoder_raw(uint16_t *left, uint16_t *right);
 void vehicle_hal_zero_rear_encoder_raw(void);
 bool vehicle_hal_read_mt6701_ssi(uint32_t *frame_24bits);
 bool vehicle_hal_get_mt6701_ab_raw(uint16_t *synthetic_raw);
+bool vehicle_hal_get_mt6701_ab_status(VehicleMt6701AbStatus *status);
 bool vehicle_hal_read_imu(VehicleHalImuRaw *raw);
 void vehicle_hal_get_imu_scale(float *acceleration_mps2_per_lsb,
                                float *angular_rate_radps_per_lsb,

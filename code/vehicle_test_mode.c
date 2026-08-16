@@ -49,6 +49,7 @@ typedef struct
     int32_t steering_delta;
     int64_t steering_count;
     bool steering_sample_seen;
+    VehicleMt6701AbStatus steering_status;
     VehicleHalImuRaw imu;
     bool imu_read_ok;
     vision_runtime_snapshot_t vision;
@@ -141,6 +142,7 @@ static void sample_inputs(uint64_t now_us)
 {
     uint16_t left_raw;
     uint16_t right_raw;
+    VehicleMt6701AbStatus steering_status;
     uint16_t steering_raw;
     vehicle_hal_get_rear_encoder_raw(&left_raw, &right_raw);
     if(g_test.rear_sample_seen)
@@ -161,8 +163,10 @@ static void sample_inputs(uint64_t now_us)
     g_test.previous_left_raw = left_raw;
     g_test.previous_right_raw = right_raw;
 
-    if(vehicle_hal_get_mt6701_ab_raw(&steering_raw))
+    if(vehicle_hal_get_mt6701_ab_status(&steering_status))
     {
+        g_test.steering_status = steering_status;
+        steering_raw = steering_status.raw;
         if(g_test.steering_sample_seen)
         {
             g_test.steering_delta = steering_delta14(
@@ -269,8 +273,8 @@ static void render_overview(void)
 {
     test_line(0U, "TEST 1/6  K1:NEXT");
     test_line(1U, "K2:SAFE STOP");
-    test_line(2U, "MT AB TIM5 A:P10.3");
-    test_line(3U, "MT B:P10.1 VCC/GND OK");
+    test_line(2U, "MT AB A:P10.3 B:P10.2");
+    test_line(3U, "Z:P10.5 D:P10.1 V/G OK");
     test_line(4U, "CAM:%c 188x120 50FPS",
               g_test.vision_camera_ready ? 'Y' : 'N');
     test_line(5U, "HAL M:%c E:%c S:%c",
@@ -308,12 +312,18 @@ static void render_steering(void)
     test_line(1U, "raw:%u d:%ld", (unsigned int)g_test.steering_raw,
               (long)g_test.steering_delta);
     test_line(2U, "count:%lld", (long long)g_test.steering_count);
-    test_line(3U, "A:P10.3 B:P10.1");
-    test_line(4U, "range:0..16383");
-    test_line(5U, "Turn left/right slowly");
-    test_line(6U, "left sign must be stable");
-    test_line(7U, "Z/DIR unused");
-    test_line(8U, "PWM forced 0");
+    test_line(3U, "A:P10.3 B:P10.2");
+    test_line(4U, "A:%u B:%u Z:%u D:%u",
+              (unsigned int)g_test.steering_status.a_level,
+              (unsigned int)g_test.steering_status.b_level,
+              (unsigned int)g_test.steering_status.z_level,
+              (unsigned int)g_test.steering_status.dir_level);
+    test_line(5U, "IDX:%lu SEEN:%c",
+              (unsigned long)g_test.steering_status.index_pulse_count,
+              g_test.steering_status.index_seen ? 'Y' : 'N');
+    test_line(6U, "Turn left/right slowly");
+    test_line(7U, "DIR high=positive cfg");
+    test_line(8U, "Z rising resets phase");
     test_line(9U, "K1 next  K2 stop");
 }
 

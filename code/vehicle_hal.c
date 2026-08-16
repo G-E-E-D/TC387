@@ -25,6 +25,10 @@ static uint16_t g_left_encoder_raw;
 static uint16_t g_right_encoder_raw;
 #if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
 static uint16_t g_mt6701_ab_raw;
+static uint8_t g_mt6701_ab_state;
+static uint8_t g_mt6701_ab_z_active;
+static uint32_t g_mt6701_ab_index_pulse_count;
+static bool g_mt6701_ab_index_seen;
 #endif
 static int16_t g_last_imu_motion_raw[7];
 static uint32_t g_imu_unchanged_count;
@@ -72,6 +76,52 @@ static void set_raw_test_motor(pwm_channel_enum pwm_pin,
     pwm_set_duty(pwm_pin, duty);
 }
 
+#if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
+static uint8_t mt6701_ab_read_state(void)
+{
+    uint8_t state = 0U;
+    if(gpio_get_level(VEHICLE_MT6701_AB_A_PIN) == GPIO_HIGH)
+    {
+        state |= 2U;
+    }
+    if(gpio_get_level(VEHICLE_MT6701_AB_B_PIN) == GPIO_HIGH)
+    {
+        state |= 1U;
+    }
+    return state;
+}
+
+static int8_t mt6701_ab_transition_delta(uint8_t previous, uint8_t current)
+{
+    uint8_t transition = (uint8_t)((previous << 2U) | current);
+    switch(transition)
+    {
+        case 0x01U:
+        case 0x07U:
+        case 0x0EU:
+        case 0x08U:
+            return 1;
+        case 0x02U:
+        case 0x0BU:
+        case 0x0DU:
+        case 0x04U:
+            return -1;
+        default:
+            return 0;
+    }
+}
+
+static uint8_t mt6701_ab_read_level(gpio_pin_enum pin)
+{
+    return (gpio_get_level(pin) == GPIO_HIGH) ? 1U : 0U;
+}
+
+static uint8_t mt6701_ab_is_active(uint8_t level, uint8_t active_high)
+{
+    return (level == active_high) ? 1U : 0U;
+}
+#endif
+
 void vehicle_hal_force_safe_outputs(void)
 {
     pwm_set_duty(VEHICLE_LEFT_PWM_PIN, 0U);
@@ -115,11 +165,17 @@ VehicleHalStatus vehicle_hal_init(void)
              VEHICLE_MT6701_SPI_CS);
     status.steering_sensor_ready = true;
 #elif VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-    encoder_quad_init(VEHICLE_MT6701_AB_INDEX,
-                      VEHICLE_MT6701_AB_A_PIN,
-                      VEHICLE_MT6701_AB_B_PIN);
-    encoder_clear_count(VEHICLE_MT6701_AB_INDEX);
+    gpio_init(VEHICLE_MT6701_AB_A_PIN, GPI, GPIO_LOW, GPI_PULL_UP);
+    gpio_init(VEHICLE_MT6701_AB_B_PIN, GPI, GPIO_LOW, GPI_PULL_UP);
+    gpio_init(VEHICLE_MT6701_AB_Z_PIN, GPI, GPIO_LOW, GPI_FLOATING_IN);
+    gpio_init(VEHICLE_MT6701_AB_DIR_PIN, GPI, GPIO_LOW, GPI_FLOATING_IN);
     g_mt6701_ab_raw = 0U;
+    g_mt6701_ab_state = mt6701_ab_read_state();
+    g_mt6701_ab_z_active = mt6701_ab_is_active(
+        mt6701_ab_read_level(VEHICLE_MT6701_AB_Z_PIN),
+        VEHICLE_MT6701_Z_ACTIVE_HIGH);
+    g_mt6701_ab_index_pulse_count = 0U;
+    g_mt6701_ab_index_seen = false;
     status.steering_sensor_ready = true;
 #else
     status.steering_sensor_ready = false;
@@ -249,10 +305,34 @@ void vehicle_hal_capture_encoder_counts(void)
     g_right_encoder_raw = (uint16_t)(g_right_encoder_raw + (uint16_t)right_delta);
 #if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
     {
-        int16_t steering_delta = encoder_get_count(VEHICLE_MT6701_AB_INDEX);
-        encoder_clear_count(VEHICLE_MT6701_AB_INDEX);
-        g_mt6701_ab_raw = (uint16_t)((g_mt6701_ab_raw + (uint16_t)steering_delta) &
+        uint8_t current_state = mt6701_ab_read_state();
+        int8_t steering_delta = mt6701_ab_transition_delta(
+            g_mt6701_ab_state, current_state);
+        uint8_t dir_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_DIR_PIN);
+        int8_t dir_sign = (dir_level == VEHICLE_MT6701_DIR_HIGH_IS_POSITIVE)
+            ? 1 : -1;
+        uint8_t z_active = mt6701_ab_is_active(
+            mt6701_ab_read_level(VEHICLE_MT6701_AB_Z_PIN),
+            VEHICLE_MT6701_Z_ACTIVE_HIGH);
+        g_mt6701_ab_state = current_state;
+        if(steering_delta != 0)
+        {
+            steering_delta = (int8_t)(dir_sign *
+                ((steering_delta < 0) ? -steering_delta : steering_delta));
+        }
+        g_mt6701_ab_raw = (uint16_t)((g_mt6701_ab_raw +
+                                      (uint16_t)(int16_t)steering_delta) &
                                      UINT16_C(0x3FFF));
+        if((z_active != 0U) && (g_mt6701_ab_z_active == 0U))
+        {
+            g_mt6701_ab_raw = 0U;
+            g_mt6701_ab_index_seen = true;
+            if(g_mt6701_ab_index_pulse_count < UINT32_MAX)
+            {
+                g_mt6701_ab_index_pulse_count++;
+            }
+        }
+        g_mt6701_ab_z_active = z_active;
     }
 #endif
 }
@@ -309,6 +389,27 @@ bool vehicle_hal_get_mt6701_ab_raw(uint16_t *synthetic_raw)
     (void)synthetic_raw;
 #endif
     return false;
+}
+
+bool vehicle_hal_get_mt6701_ab_status(VehicleMt6701AbStatus *status)
+{
+#if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
+    if(status == NULL)
+    {
+        return false;
+    }
+    status->raw = g_mt6701_ab_raw;
+    status->a_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_A_PIN);
+    status->b_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_B_PIN);
+    status->z_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_Z_PIN);
+    status->dir_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_DIR_PIN);
+    status->index_pulse_count = g_mt6701_ab_index_pulse_count;
+    status->index_seen = g_mt6701_ab_index_seen;
+    return true;
+#else
+    (void)status;
+    return false;
+#endif
 }
 
 bool vehicle_hal_read_imu(VehicleHalImuRaw *raw)
