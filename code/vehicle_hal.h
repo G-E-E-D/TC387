@@ -39,8 +39,10 @@ typedef struct
 typedef struct
 {
     uint16_t raw;
+    uint16_t timer_count;
     int64_t continuous_count;
     int64_t last_index_interval_count;
+    int32_t last_hardware_delta;
     uint8_t a_level;
     uint8_t b_level;
     uint8_t z_level;

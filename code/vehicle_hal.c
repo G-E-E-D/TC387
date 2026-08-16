@@ -25,6 +25,8 @@ static uint16_t g_left_encoder_raw;
 static uint16_t g_right_encoder_raw;
 #if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
 static uint16_t g_mt6701_ab_raw;
+static uint16_t g_mt6701_ab_timer_previous;
+static int32_t g_mt6701_ab_last_hardware_delta;
 static int64_t g_mt6701_ab_continuous_count;
 static int64_t g_mt6701_ab_last_index_count;
 static int64_t g_mt6701_ab_last_index_interval_count;
@@ -152,12 +154,13 @@ VehicleHalStatus vehicle_hal_init(void)
     vehicle_hal_force_safe_outputs();
     status.motor_outputs_ready = true;
 
-    encoder_quad_init(VEHICLE_LEFT_ENCODER_INDEX,
-                      VEHICLE_LEFT_ENCODER_A_PIN,
-                      VEHICLE_LEFT_ENCODER_B_PIN);
-    encoder_quad_init(VEHICLE_RIGHT_ENCODER_INDEX,
-                      VEHICLE_RIGHT_ENCODER_A_PIN,
-                      VEHICLE_RIGHT_ENCODER_B_PIN);
+    /* Rear encoders provide A phase plus DIR, not quadrature A/B. */
+    encoder_dir_init(VEHICLE_LEFT_ENCODER_INDEX,
+                     VEHICLE_LEFT_ENCODER_A_PIN,
+                     VEHICLE_LEFT_ENCODER_DIR_PIN);
+    encoder_dir_init(VEHICLE_RIGHT_ENCODER_INDEX,
+                     VEHICLE_RIGHT_ENCODER_A_PIN,
+                     VEHICLE_RIGHT_ENCODER_DIR_PIN);
     encoder_clear_count(VEHICLE_LEFT_ENCODER_INDEX);
     encoder_clear_count(VEHICLE_RIGHT_ENCODER_INDEX);
     g_left_encoder_raw = 0U;
@@ -171,11 +174,16 @@ VehicleHalStatus vehicle_hal_init(void)
              VEHICLE_MT6701_SPI_CS);
     status.steering_sensor_ready = true;
 #elif VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-    gpio_init(VEHICLE_MT6701_AB_A_PIN, GPI, GPIO_LOW, GPI_PULL_UP);
+    encoder_dir_init(VEHICLE_MT6701_AB_COUNTER_INDEX,
+                     VEHICLE_MT6701_AB_COUNTER_A_PIN,
+                     VEHICLE_MT6701_AB_COUNTER_DIR_PIN);
+    encoder_clear_count(VEHICLE_MT6701_AB_COUNTER_INDEX);
     gpio_init(VEHICLE_MT6701_AB_B_PIN, GPI, GPIO_LOW, GPI_PULL_UP);
-    gpio_init(VEHICLE_MT6701_AB_Z_PIN, GPI, GPIO_LOW, GPI_FLOATING_IN);
-    gpio_init(VEHICLE_MT6701_AB_DIR_PIN, GPI, GPIO_LOW, GPI_FLOATING_IN);
+    gpio_init(VEHICLE_MT6701_AB_Z_PIN, GPI, GPIO_LOW, GPI_PULL_UP);
     g_mt6701_ab_raw = 0U;
+    g_mt6701_ab_timer_previous = (uint16_t)encoder_get_count(
+        VEHICLE_MT6701_AB_COUNTER_INDEX);
+    g_mt6701_ab_last_hardware_delta = 0;
     g_mt6701_ab_continuous_count = 0LL;
     g_mt6701_ab_last_index_count = 0LL;
     g_mt6701_ab_last_index_interval_count = 0LL;
@@ -317,6 +325,10 @@ void vehicle_hal_capture_encoder_counts(void)
     g_right_encoder_raw = (uint16_t)(g_right_encoder_raw + (uint16_t)right_delta);
 #if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
     {
+        uint16_t timer_current = (uint16_t)encoder_get_count(
+            VEHICLE_MT6701_AB_COUNTER_INDEX);
+        int32_t hardware_delta = (int32_t)timer_current -
+            (int32_t)g_mt6701_ab_timer_previous;
         uint8_t current_state = mt6701_ab_read_state();
         int8_t ab_delta = mt6701_ab_transition_delta(
             g_mt6701_ab_state, current_state);
@@ -326,6 +338,23 @@ void vehicle_hal_capture_encoder_counts(void)
         uint8_t z_active = mt6701_ab_is_active(
             mt6701_ab_read_level(VEHICLE_MT6701_AB_Z_PIN),
             VEHICLE_MT6701_Z_ACTIVE_HIGH);
+
+        /*
+         * TIM5 is deliberately left free-running.  The signed 16-bit
+         * modular delta preserves edges that would otherwise fall between a
+         * read and a clear operation.  Mechanical steering is many orders of
+         * magnitude below the 32768-edge-per-capture ambiguity limit.
+         */
+        if(hardware_delta > (int32_t)INT16_MAX)
+        {
+            hardware_delta -= (int32_t)65536;
+        }
+        else if(hardware_delta < (int32_t)INT16_MIN)
+        {
+            hardware_delta += (int32_t)65536;
+        }
+        g_mt6701_ab_timer_previous = timer_current;
+        g_mt6701_ab_last_hardware_delta = hardware_delta;
 
         if((current_state != g_mt6701_ab_state) && (ab_delta == 0))
         {
@@ -338,9 +367,9 @@ void vehicle_hal_capture_encoder_counts(void)
         if(ab_delta != 0)
         {
             /*
-             * A/B is the position source.  DIR independently verifies its
-             * sign; it must not reverse a position estimate solely because
-             * its bench polarity has not yet been commissioned.
+             * TIM5 A+DIR is the position source.  B is sampled only as a
+             * phase monitor because P10.2 cannot join TIM5 as x4 hardware
+             * quadrature; missed software samples cannot perturb position.
              */
             if(((ab_delta > 0) ? 1 : -1) != dir_sign)
             {
@@ -349,7 +378,10 @@ void vehicle_hal_capture_encoder_counts(void)
                     g_mt6701_ab_dir_mismatch_count++;
                 }
             }
-            g_mt6701_ab_continuous_count += (int64_t)ab_delta;
+        }
+        if(hardware_delta != 0)
+        {
+            g_mt6701_ab_continuous_count += (int64_t)hardware_delta;
             g_mt6701_ab_raw = (uint16_t)((uint64_t)
                 g_mt6701_ab_continuous_count & UINT64_C(0x3FFF));
         }
@@ -436,9 +468,11 @@ bool vehicle_hal_get_mt6701_ab_status(VehicleMt6701AbStatus *status)
         return false;
     }
     status->raw = g_mt6701_ab_raw;
+    status->timer_count = g_mt6701_ab_timer_previous;
     status->continuous_count = g_mt6701_ab_continuous_count;
     status->last_index_interval_count =
         g_mt6701_ab_last_index_interval_count;
+    status->last_hardware_delta = g_mt6701_ab_last_hardware_delta;
     status->a_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_A_PIN);
     status->b_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_B_PIN);
     status->z_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_Z_PIN);

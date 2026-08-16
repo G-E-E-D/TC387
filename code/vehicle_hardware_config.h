@@ -14,10 +14,10 @@
 
 #define VEHICLE_LEFT_ENCODER_INDEX           TIM6_ENCODER
 #define VEHICLE_LEFT_ENCODER_A_PIN           TIM6_ENCODER_CH1_P20_3
-#define VEHICLE_LEFT_ENCODER_B_PIN           TIM6_ENCODER_CH2_P20_0
+#define VEHICLE_LEFT_ENCODER_DIR_PIN         TIM6_ENCODER_CH2_P20_0
 #define VEHICLE_RIGHT_ENCODER_INDEX          TIM3_ENCODER
 #define VEHICLE_RIGHT_ENCODER_A_PIN          TIM3_ENCODER_CH1_P02_6
-#define VEHICLE_RIGHT_ENCODER_B_PIN          TIM3_ENCODER_CH2_P02_7
+#define VEHICLE_RIGHT_ENCODER_DIR_PIN        TIM3_ENCODER_CH2_P02_7
 
 #define VEHICLE_KEY_1_PIN                    P20_6
 #define VEHICLE_KEY_2_PIN                    P20_7
@@ -28,8 +28,9 @@
  * The confirmed steering sensor is the AB-output MT6701 module shown in the
  * supplied pinout.  From the module's Z-to-DIR order, P5 routes
  * Z=P10.5, B=P10.2, A=P10.3 and DIR=P10.1.  VCC/GND use the matching
- * power pins on the vehicle schematic.  A/B are decoded in software because
- * P10.3/P10.2 are not one stock GPT12 encoder pin pair.
+ * power pins on the vehicle schematic.  A and DIR exactly match GPT12 TIM5,
+ * so TIM5 provides the primary hardware count.  B and Z remain independent
+ * phase/index monitors.
  */
 #define VEHICLE_MT6701_INTERFACE_UNCONFIRMED (0U)
 #define VEHICLE_MT6701_INTERFACE_SSI         (1U)
@@ -49,13 +50,15 @@
 #define VEHICLE_MT6701_AB_B_PIN              P10_2
 #define VEHICLE_MT6701_AB_Z_PIN              P10_5
 #define VEHICLE_MT6701_AB_DIR_PIN            P10_1
+#define VEHICLE_MT6701_AB_COUNTER_INDEX       TIM5_ENCODER
+#define VEHICLE_MT6701_AB_COUNTER_A_PIN       TIM5_ENCODER_CH1_P10_3
+#define VEHICLE_MT6701_AB_COUNTER_DIR_PIN     TIM5_ENCODER_CH2_P10_1
 /*
- * DIR is checked against the A/B-decoder sign.  "positive" means the
- * positive software A/B count direction, not physical left/right; confirm
- * this electrical polarity on the bench before treating a mismatch as a
- * sensor fault.
+ * Tentative B-phase monitor polarity.  It never affects the primary counter:
+ * hardware TIM5 consumes DIR directly.  Confirm or revise this after a
+ * deliberately slow B-phase test.
  */
-#define VEHICLE_MT6701_DIR_HIGH_IS_POSITIVE  (1U)
+#define VEHICLE_MT6701_DIR_HIGH_IS_POSITIVE  (0U)
 #define VEHICLE_MT6701_Z_ACTIVE_HIGH        (1U)
 
 /* The schematic connector matches the stock IPS200 SPI pin map. */

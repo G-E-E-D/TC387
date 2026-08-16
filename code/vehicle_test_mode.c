@@ -277,31 +277,33 @@ static void render_encoders(void)
 static void render_steering(void)
 {
     test_line(0U, "TEST 3/6 MT6701 AB");
-    test_line(1U, "raw:%u cnt:%lld", (unsigned int)g_test.steering_raw,
+    test_line(1U, "ph14:%u cnt:%lld", (unsigned int)g_test.steering_raw,
               (long long)g_test.steering_status.continuous_count);
-    test_line(2U, "A:P10.3 B:P10.2");
-    test_line(3U, "A:%u B:%u Z:%u D:%u",
+    test_line(2U, "T5:%u d:%ld", (unsigned int)
+              g_test.steering_status.timer_count, (long)
+              g_test.steering_status.last_hardware_delta);
+    test_line(3U, "SRC A:P10.3 D:P10.1");
+    test_line(4U, "B:P10.2 Z:P10.5");
+    test_line(5U, "A:%u B:%u Z:%u D:%u",
               (unsigned int)g_test.steering_status.a_level,
               (unsigned int)g_test.steering_status.b_level,
               (unsigned int)g_test.steering_status.z_level,
               (unsigned int)g_test.steering_status.dir_level);
-    test_line(4U, "IDX:%lu SEEN:%c",
+    test_line(6U, "IDX:%lu SEEN:%c",
               (unsigned long)g_test.steering_status.index_pulse_count,
               g_test.steering_status.index_seen ? 'Y' : 'N');
     if(g_test.steering_status.last_index_interval_valid)
     {
-        test_line(5U, "dZ:%lld", (long long)
+        test_line(7U, "dZ:%lld", (long long)
                   g_test.steering_status.last_index_interval_count);
     }
     else
     {
-        test_line(5U, "dZ:wait next Z");
+        test_line(7U, "dZ:wait next Z");
     }
-    test_line(6U, "BAD:%lu DM:%lu", (unsigned long)
+    test_line(8U, "SW:%lu/%lu Z:no reset", (unsigned long)
               g_test.steering_status.invalid_transition_count,
               (unsigned long)g_test.steering_status.dir_mismatch_count);
-    test_line(7U, "Turn left/right slowly");
-    test_line(8U, "Z validates; no reset");
     test_line(9U, "K1 next  K2 stop");
 }
 
