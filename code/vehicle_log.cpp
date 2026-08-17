@@ -7,8 +7,13 @@
 
 static const char g_csv_header[] =
     "timestamp_us,state,left_encoder_count,right_encoder_count,"
-    "left_speed_mps,right_speed_mps,mt6701_raw,steering_continuous_count,"
-    "steering_angle_rad,ax,ay,az,gx,gy,gz,imu_temperature,pose_x,pose_y,"
+    "left_speed_mps,right_speed_mps,steering_raw,steering_relative_count,"
+    "steering_continuous_count,steering_angle_rad,steering_comm_errors,"
+    "steering_jump_errors,camera_sequence,tag_confidence,tag_center_x,"
+    "tag_center_y,tag_size,vision_process_us,vision_process_max_us,"
+    "guide_x,guide_y,guide_distance,follow_distance,"
+    "forward_aim_x,forward_aim_y,forward_curvature,forward_speed,"
+    "forward_steering,imu_gz,omega_wheel,omega_steer,pose_x,pose_y,"
     "pose_yaw,fused_speed,target_speed,target_steering,left_pwm,right_pwm,"
     "steering_pwm,path_index,cross_track_error,heading_error,fault_flags\r\n";
 
@@ -84,26 +89,47 @@ bool vehicle_log_enqueue_csv(VehicleLog *log, const VehicleTelemetry *t)
         log->header_pending = false;
     }
     count = snprintf(line, sizeof(line),
-        "%llu,%u,%lld,%lld,%.5f,%.5f,%u,%lld,%.6f,"
-        "%.5f,%.5f,%.5f,%.6f,%.6f,%.6f,%.3f,"
+        "%llu,%u,%lld,%lld,%.5f,%.5f,%u,%ld,%lld,%.6f,%lu,%lu,"
+        "%lu,%u,%d,%d,%u,%lu,%lu,%.4f,%.4f,%.4f,%.4f,%.4f,%.5f,%.5f,"
         "%.5f,%.5f,%.6f,%.5f,%.5f,%.6f,%.5f,%.5f,%.5f,"
-        "%lu,%.5f,%.6f,%lu\r\n",
-        static_cast<unsigned long long>(t->timestamp_us), static_cast<unsigned int>(t->state),
-        static_cast<long long>(t->left_wheel.count), static_cast<long long>(t->right_wheel.count),
-        static_cast<double>(t->left_wheel.speed_mps), static_cast<double>(t->right_wheel.speed_mps),
+        "%.5f,%.5f,%.5f,%.5f,%.5f,%lu,%.5f,%.6f,%lu\r\n",
+        static_cast<unsigned long long>(t->timestamp_us),
+        static_cast<unsigned int>(t->state),
+        static_cast<long long>(t->left_wheel.count),
+        static_cast<long long>(t->right_wheel.count),
+        static_cast<double>(t->left_wheel.speed_mps),
+        static_cast<double>(t->right_wheel.speed_mps),
         static_cast<unsigned int>(t->steering.raw_angle),
+        static_cast<long>(t->steering.relative_count),
         static_cast<long long>(t->steering.continuous_count),
         static_cast<double>(t->steering.angle_rad),
-        static_cast<double>(t->imu.acceleration_mps2[0]),
-        static_cast<double>(t->imu.acceleration_mps2[1]),
-        static_cast<double>(t->imu.acceleration_mps2[2]),
-        static_cast<double>(t->imu.angular_rate_radps[0]),
-        static_cast<double>(t->imu.angular_rate_radps[1]),
+        static_cast<unsigned long>(t->steering.communication_error_count),
+        static_cast<unsigned long>(t->steering.jump_error_count),
+        static_cast<unsigned long>(t->guide_target.camera_sequence),
+        static_cast<unsigned int>(t->guide_target.confidence),
+        static_cast<int>(t->guide_target.center_x_px),
+        static_cast<int>(t->guide_target.center_y_px),
+        static_cast<unsigned int>(t->guide_target.size_px),
+        static_cast<unsigned long>(t->guide_target.process_us_last),
+        static_cast<unsigned long>(t->guide_target.process_us_max),
+        static_cast<double>(t->guide_target.target_x_forward_m),
+        static_cast<double>(t->guide_target.target_y_left_m),
+        static_cast<double>(t->guide_target.distance_m),
+        static_cast<double>(t->desired_follow_distance_m),
+        static_cast<double>(t->forward_tracker.aim_x_m),
+        static_cast<double>(t->forward_tracker.aim_y_m),
+        static_cast<double>(t->forward_tracker.curvature_per_m),
+        static_cast<double>(t->forward_tracker.target_speed_mps),
+        static_cast<double>(t->forward_tracker.target_steering_rad),
         static_cast<double>(t->imu.angular_rate_radps[2]),
-        static_cast<double>(t->imu.temperature_c),
-        static_cast<double>(t->pose.x_m), static_cast<double>(t->pose.y_m), static_cast<double>(t->pose.yaw_rad),
+        static_cast<double>(t->pose.omega_wheel_radps),
+        static_cast<double>(t->pose.omega_steering_radps),
+        static_cast<double>(t->pose.x_m),
+        static_cast<double>(t->pose.y_m),
+        static_cast<double>(t->pose.yaw_rad),
         static_cast<double>(t->pose.vehicle_speed_mps),
-        static_cast<double>(t->target_speed_mps), static_cast<double>(t->target_steering_rad),
+        static_cast<double>(t->target_speed_mps),
+        static_cast<double>(t->target_steering_rad),
         static_cast<double>(t->actuators.left_motor_duty),
         static_cast<double>(t->actuators.right_motor_duty),
         static_cast<double>(t->actuators.steering_motor_duty),

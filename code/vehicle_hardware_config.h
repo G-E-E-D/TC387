@@ -25,41 +25,23 @@
 constexpr auto VEHICLE_MOTOR_PWM_HZ = 20000U;
 
 /*
- * The confirmed steering sensor is the AB-output MT6701 module shown in the
- * supplied pinout.  From the module's Z-to-DIR order, P5 routes
- * Z=P10.5, B=P10.2, A=P10.3 and DIR=P10.1.  VCC/GND use the matching
- * power pins on the vehicle schematic.  A and DIR exactly match GPT12 TIM5,
- * so TIM5 provides the primary hardware count.  B and Z remain independent
- * phase/index monitors.
+ * Production steering sensor: 12-bit absolute encoder on schematic P5.
+ * P10.1/P10.2/P10.3/P10.5 are reserved for the SPI1 Mode-0 transaction;
+ * the old TIM5 AB/DIR mapping is intentionally not part of the normal HAL.
  */
-constexpr auto VEHICLE_MT6701_INTERFACE_UNCONFIRMED = 0U;
-constexpr auto VEHICLE_MT6701_INTERFACE_SSI = 1U;
-constexpr auto VEHICLE_MT6701_INTERFACE_AB = 2U;
-#ifndef VEHICLE_MT6701_INTERFACE
-#define VEHICLE_MT6701_INTERFACE             VEHICLE_MT6701_INTERFACE_AB
-#endif
+#define VEHICLE_STEERING_ENCODER_SPI_INDEX  SPI_1
+#define VEHICLE_STEERING_ENCODER_SPI_MODE   SPI_MODE0
+constexpr auto VEHICLE_STEERING_ENCODER_SPI_HZ = 2000000U;
+#define VEHICLE_STEERING_ENCODER_SCLK       SPI1_SCLK_P10_2
+#define VEHICLE_STEERING_ENCODER_MISO       SPI1_MISO_P10_1
+#define VEHICLE_STEERING_ENCODER_MOSI       SPI1_MOSI_P10_3
+#define VEHICLE_STEERING_ENCODER_CS         SPI1_CS9_P10_5
 
-#define VEHICLE_MT6701_SPI_INDEX             SPI_1
-#define VEHICLE_MT6701_SPI_MODE              SPI_MODE2
-constexpr auto VEHICLE_MT6701_SPI_HZ = 2000000U;
-#define VEHICLE_MT6701_SPI_SCLK              SPI1_SCLK_P10_2
-#define VEHICLE_MT6701_SPI_MOSI              SPI1_MOSI_P10_3
-#define VEHICLE_MT6701_SPI_MISO              SPI1_MISO_P10_1
-#define VEHICLE_MT6701_SPI_CS                SPI1_CS9_P10_5
-#define VEHICLE_MT6701_AB_A_PIN              P10_3
-#define VEHICLE_MT6701_AB_B_PIN              P10_2
-#define VEHICLE_MT6701_AB_Z_PIN              P10_5
-#define VEHICLE_MT6701_AB_DIR_PIN            P10_1
-#define VEHICLE_MT6701_AB_COUNTER_INDEX       TIM5_ENCODER
-#define VEHICLE_MT6701_AB_COUNTER_A_PIN       TIM5_ENCODER_CH1_P10_3
-#define VEHICLE_MT6701_AB_COUNTER_DIR_PIN     TIM5_ENCODER_CH2_P10_1
-/*
- * Tentative B-phase monitor polarity.  It never affects the primary counter:
- * hardware TIM5 consumes DIR directly.  Confirm or revise this after a
- * deliberately slow B-phase test.
- */
-constexpr auto VEHICLE_MT6701_DIR_HIGH_IS_POSITIVE = 0U;
-constexpr auto VEHICLE_MT6701_Z_ACTIVE_HIGH = 1U;
+/* Historical constants are kept only so the retained bench adapter can be
+ * compiled independently; vehicle_app never selects these interfaces. */
+#define VEHICLE_MT6701_INTERFACE_UNCONFIRMED 0U
+#define VEHICLE_MT6701_INTERFACE_SSI         1U
+#define VEHICLE_MT6701_INTERFACE_AB          2U
 
 /* The schematic connector matches the stock IPS200 SPI pin map. */
 #ifndef VEHICLE_IPS200_ENABLE

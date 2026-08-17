@@ -32,8 +32,10 @@ static bool safety_config_is_valid(const VehicleSafetyConfig *config)
            (config->wheel_mismatch_min_speed_mps >= 0.0f) &&
            (config->wheel_mismatch_max_mps > 0.0f) &&
            (config->wheel_mismatch_timeout_s > 0.0f) &&
-           (config->mt6701_max_delta_count > 0) &&
-           (config->mt6701_error_limit > 0U) &&
+           ((config->steering_max_delta_count > 0) ||
+            (config->mt6701_max_delta_count > 0)) &&
+           ((config->steering_error_limit > 0U) ||
+            (config->mt6701_error_limit > 0U)) &&
            (config->steering_stall_duty >= 0.0f) &&
            (config->steering_stall_duty <= 1.0f) &&
            (config->steering_stall_count_delta >= 0) &&
@@ -228,6 +230,41 @@ static bool values_are_finite(const VehicleSafetyInputs *inputs)
             return false;
         }
     }
+    if(inputs->forward_tracker.valid)
+    {
+        const float forward_values[] =
+        {
+            inputs->forward_tracker.aim_x_m,
+            inputs->forward_tracker.aim_y_m,
+            inputs->forward_tracker.curvature_per_m,
+            inputs->forward_tracker.target_speed_mps,
+            inputs->forward_tracker.target_steering_rad,
+            inputs->forward_tracker.distance_error_m
+        };
+        if(!vehicle_float_array_is_finite(
+               forward_values,
+               static_cast<unsigned int>(sizeof(forward_values) /
+                                          sizeof(forward_values[0]))))
+        {
+            return false;
+        }
+    }
+    if(inputs->guide_target.valid)
+    {
+        const float guide_values[] =
+        {
+            inputs->guide_target.distance_m,
+            inputs->guide_target.target_x_forward_m,
+            inputs->guide_target.target_y_left_m
+        };
+        if(!vehicle_float_array_is_finite(
+               guide_values,
+               static_cast<unsigned int>(sizeof(guide_values) /
+                                          sizeof(guide_values[0]))))
+        {
+            return false;
+        }
+    }
     if(inputs->additional_numeric_value_count > 0U)
     {
         if((inputs->additional_numeric_values == nullptr) ||
@@ -339,8 +376,11 @@ void vehicle_safety_default_config(VehicleSafetyConfig *config)
         config->wheel_mismatch_min_speed_mps = WHEEL_MISMATCH_MIN_SPEED_MPS;
         config->wheel_mismatch_max_mps = WHEEL_MISMATCH_MAX_MPS;
         config->wheel_mismatch_timeout_s = WHEEL_MISMATCH_TIMEOUT_S;
-        config->mt6701_max_delta_count = MT6701_MAX_DELTA_COUNT_PER_SAMPLE;
-        config->mt6701_error_limit = MT6701_ERROR_LIMIT;
+        config->steering_max_delta_count =
+            STEERING_ENCODER_MAX_DELTA_COUNT_PER_SAMPLE;
+        config->steering_error_limit = STEERING_ENCODER_ERROR_LIMIT;
+        config->mt6701_max_delta_count = config->steering_max_delta_count;
+        config->mt6701_error_limit = config->steering_error_limit;
         config->steering_stall_duty = STEERING_STALL_DUTY;
         config->steering_stall_count_delta = STEERING_STALL_COUNT_DELTA;
         config->steering_stall_timeout_s = STEERING_STALL_TIMEOUT_S;
@@ -392,6 +432,7 @@ void vehicle_safety_init(VehicleSafetyMonitor *monitor,
     monitor->previous_steering_count = 0;
     monitor->previous_steering_timestamp_us = 0U;
     monitor->previous_update_timestamp_us = 0U;
+    monitor->steering_error_count = 0U;
     monitor->mt6701_error_count = 0U;
     monitor->tracker_index_loss_count = 0U;
     monitor->monitored_active_flags = VEHICLE_FAULT_NONE;
@@ -417,6 +458,10 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
     bool mt_comm_fault;
     bool mt_timeout;
     bool mt_jump;
+    bool steering_jump_fault;
+    bool steering_comm_ok;
+    int64_t steering_max_delta_count;
+    uint32_t steering_error_limit;
     bool steering_limit;
     bool steering_stall_condition;
     bool imu_comm_fault;
@@ -427,6 +472,12 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
     bool path_invalid;
     bool tracker_lost;
     bool tracking_error;
+    bool vision_frame_stale;
+    bool vision_tag_lost;
+    bool vision_tag_confidence;
+    bool vision_position_invalid;
+    bool vision_process_timeout;
+    bool forward_tracker_numeric;
     uint32_t path_capacity;
     int64_t steering_lower_limit;
     int64_t steering_upper_limit;
@@ -447,7 +498,7 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
                            monitor->previous_update_timestamp_us);
     sensors_required = state_requires_sensors(inputs->state) ||
         ((monitor->monitored_active_flags &
-          (VEHICLE_FAULT_MT6701_COMM |
+          (VEHICLE_FAULT_STEERING_ENCODER_COMM |
            VEHICLE_FAULT_IMU_COMM |
            VEHICLE_FAULT_IMU_RANGE |
            VEHICLE_FAULT_IMU_TIMEOUT)) != 0U);
@@ -510,25 +561,35 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
         monitor->wheel_mismatch_elapsed_s, wheel_mismatch_condition, dt_s,
         monitor->config.wheel_mismatch_timeout_s);
 
-    if(!inputs->mt6701_communication_ok || !inputs->steering.valid)
+    steering_comm_ok = inputs->steering_communication_ok ||
+                       inputs->mt6701_communication_ok;
+    steering_max_delta_count =
+        (monitor->config.steering_max_delta_count > 0)
+            ? monitor->config.steering_max_delta_count
+            : monitor->config.mt6701_max_delta_count;
+    steering_error_limit =
+        (monitor->config.steering_error_limit > 0U)
+            ? monitor->config.steering_error_limit
+            : monitor->config.mt6701_error_limit;
+    if(!steering_comm_ok || !inputs->steering.valid)
     {
-        if(monitor->mt6701_error_count < UINT32_MAX)
+        if(monitor->steering_error_count < UINT32_MAX)
         {
-            ++monitor->mt6701_error_count;
+            ++monitor->steering_error_count;
         }
     }
     else
     {
-        monitor->mt6701_error_count = 0U;
+        monitor->steering_error_count = 0U;
     }
+    monitor->mt6701_error_count = monitor->steering_error_count;
     mt_timeout = sensors_required && timestamp_is_stale(
         inputs->timestamp_us, inputs->steering.timestamp_us,
         monitor->config.sensor_timeout_us);
     mt_comm_fault = sensors_required &&
-        ((monitor->mt6701_error_count >=
-          monitor->config.mt6701_error_limit) || mt_timeout);
+        (monitor->steering_error_count >= steering_error_limit);
     mt_jump = false;
-    if(inputs->mt6701_communication_ok && inputs->steering.valid &&
+    if(steering_comm_ok && inputs->steering.valid &&
        monitor->previous_steering_valid &&
        (inputs->steering.timestamp_us !=
         monitor->previous_steering_timestamp_us))
@@ -537,8 +598,9 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
                    monitor->previous_steering_timestamp_us) ||
             (fabs(static_cast<double>(inputs->steering.continuous_count) -
                   static_cast<double>(monitor->previous_steering_count)) >
-             static_cast<double>(monitor->config.mt6701_max_delta_count));
+             static_cast<double>(steering_max_delta_count));
     }
+    steering_jump_fault = (inputs->steering.jump_error_count > 0U) || mt_jump;
     steering_lower_limit = (monitor->steering_left_limit_count <
                             monitor->steering_right_limit_count)
         ? monitor->steering_left_limit_count
@@ -612,7 +674,36 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
         ((fabsf(inputs->tracker.cross_track_error_m) >
           monitor->config.tracker_max_cross_track_error_m) ||
          (fabsf(inputs->tracker.heading_error_rad) >
-          monitor->config.tracker_max_heading_error_rad));
+         monitor->config.tracker_max_heading_error_rad));
+
+    vision_frame_stale = (inputs->state == VEHICLE_STATE_STAGE1_RECORD) &&
+        (inputs->guide_target.timestamp_us != 0U) &&
+        ((inputs->guide_target.timestamp_us == 0U) ||
+         !inputs->guide_target.fresh ||
+         (inputs->guide_target.age_us > GUIDE_TARGET_TIMEOUT_US));
+    vision_tag_lost = (inputs->state == VEHICLE_STATE_STAGE1_RECORD) &&
+        (inputs->guide_target.timestamp_us != 0U) &&
+        !inputs->guide_target.valid && !vision_frame_stale;
+    vision_tag_confidence = (inputs->state == VEHICLE_STATE_STAGE1_RECORD) &&
+        (inputs->guide_target.timestamp_us != 0U) &&
+        (inputs->guide_target.confidence < VEHICLE_VISION_MIN_CONFIDENCE);
+    vision_position_invalid = (inputs->state == VEHICLE_STATE_STAGE1_RECORD) &&
+        (inputs->guide_target.timestamp_us != 0U) &&
+        (inputs->guide_target.too_close ||
+         (inputs->guide_target.valid &&
+          (!isfinite(inputs->guide_target.target_x_forward_m) ||
+           !isfinite(inputs->guide_target.target_y_left_m) ||
+           !(inputs->guide_target.target_x_forward_m > 0.0f))));
+    vision_process_timeout = (inputs->state == VEHICLE_STATE_STAGE1_RECORD) &&
+        (inputs->guide_target.timestamp_us != 0U) &&
+        ((inputs->guide_target.process_us_last > VISION_PROCESS_MAX_US) ||
+         (inputs->guide_target.process_us_max > VISION_PROCESS_MAX_US));
+    forward_tracker_numeric = (inputs->state == VEHICLE_STATE_STAGE1_RECORD) &&
+        (inputs->guide_target.timestamp_us != 0U) &&
+        (!inputs->forward_tracker.valid ||
+         !isfinite(inputs->forward_tracker.target_speed_mps) ||
+         (inputs->forward_tracker.target_speed_mps < 0.0f) ||
+         !isfinite(inputs->forward_tracker.target_steering_rad));
 
     safety_set_condition(monitor, fault_manager,
                          VEHICLE_FAULT_LEFT_ENCODER_JUMP,
@@ -635,10 +726,15 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
                          monitor->wheel_mismatch_elapsed_s >=
                          monitor->config.wheel_mismatch_timeout_s,
                          false, inputs->timestamp_us);
-    safety_set_condition(monitor, fault_manager, VEHICLE_FAULT_MT6701_COMM,
+    safety_set_condition(monitor, fault_manager,
+                         VEHICLE_FAULT_STEERING_ENCODER_COMM,
                          mt_comm_fault, true, inputs->timestamp_us);
-    safety_set_condition(monitor, fault_manager, VEHICLE_FAULT_MT6701_JUMP,
-                         mt_jump, true, inputs->timestamp_us);
+    safety_set_condition(monitor, fault_manager,
+                         VEHICLE_FAULT_STEERING_TIMEOUT,
+                         mt_timeout, true, inputs->timestamp_us);
+    safety_set_condition(monitor, fault_manager,
+                         VEHICLE_FAULT_STEERING_ENCODER_JUMP,
+                         steering_jump_fault, true, inputs->timestamp_us);
     safety_set_condition(monitor, fault_manager,
                          VEHICLE_FAULT_STEERING_LIMIT,
                          steering_limit, true, inputs->timestamp_us);
@@ -666,6 +762,24 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
     safety_set_condition(monitor, fault_manager,
                          VEHICLE_FAULT_TRACKING_ERROR,
                          tracking_error, false, inputs->timestamp_us);
+    safety_set_condition(monitor, fault_manager,
+                         VEHICLE_FAULT_VISION_FRAME_STALE,
+                         vision_frame_stale, false, inputs->timestamp_us);
+    safety_set_condition(monitor, fault_manager,
+                         VEHICLE_FAULT_VISION_TAG_LOST,
+                         vision_tag_lost, false, inputs->timestamp_us);
+    safety_set_condition(monitor, fault_manager,
+                         VEHICLE_FAULT_VISION_TAG_CONFIDENCE,
+                         vision_tag_confidence, false, inputs->timestamp_us);
+    safety_set_condition(monitor, fault_manager,
+                         VEHICLE_FAULT_VISION_POSITION,
+                         vision_position_invalid, true, inputs->timestamp_us);
+    safety_set_condition(monitor, fault_manager,
+                         VEHICLE_FAULT_VISION_PROCESS,
+                         vision_process_timeout, false, inputs->timestamp_us);
+    safety_set_condition(monitor, fault_manager,
+                         VEHICLE_FAULT_FORWARD_TRACKER,
+                         forward_tracker_numeric, true, inputs->timestamp_us);
     safety_set_condition(monitor, fault_manager, VEHICLE_FAULT_NUMERIC,
                          numeric_fault, true, inputs->timestamp_us);
 
@@ -681,7 +795,7 @@ void vehicle_safety_update(VehicleSafetyMonitor *monitor,
         monitor->previous_right_speed_mps = inputs->right_wheel.speed_mps;
         monitor->previous_right_timestamp_us = inputs->right_wheel.timestamp_us;
     }
-    if(inputs->mt6701_communication_ok && inputs->steering.valid)
+    if(steering_comm_ok && inputs->steering.valid)
     {
         monitor->previous_steering_valid = true;
         monitor->previous_steering_count =
@@ -715,6 +829,7 @@ bool vehicle_safety_manual_reset(VehicleSafetyMonitor *monitor,
         monitor->right_stall_elapsed_s = 0.0f;
         monitor->wheel_mismatch_elapsed_s = 0.0f;
         monitor->steering_stall_elapsed_s = 0.0f;
+        monitor->steering_error_count = 0U;
         monitor->mt6701_error_count = 0U;
         monitor->tracker_index_loss_count = 0U;
         monitor->monitored_active_flags = 0U;
@@ -728,7 +843,7 @@ uint32_t vehicle_safety_get_controlled_stop_request_flags(
 {
     return (monitor != nullptr)
         ? monitor->controlled_stop_request_flags
-        : VEHICLE_FAULT_NONE;
+        : static_cast<uint32_t>(VEHICLE_FAULT_NONE);
 }
 
 bool vehicle_safety_output_is_allowed(const VehicleSafetyMonitor *monitor,

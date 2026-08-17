@@ -24,7 +24,7 @@ constexpr auto VEHICLE_VISION_STEERING_RAD_LIMIT = 0.35f;
 constexpr auto PATH_MAX_POINTS = 4096U;
 constexpr auto PATH_POINT_SIZE_BYTES = 24U;
 constexpr auto PATH_STORAGE_BYTES = PATH_MAX_POINTS * PATH_POINT_SIZE_BYTES;
-constexpr auto PATH_RECORD_SPACING_M = 0.025f;
+constexpr auto PATH_RECORD_SPACING_M = 0.030f;
 constexpr auto PATH_RESAMPLE_SPACING_M = 0.030f;
 constexpr auto PATH_MIN_POINT_DISTANCE_M = 0.002f;
 constexpr auto PATH_YAW_SAMPLE_THRESHOLD_RAD = 0.035f;
@@ -90,7 +90,7 @@ constexpr auto STEERING_STALL_COUNT_DELTA = 2LL;
 constexpr auto STEERING_STALL_TIMEOUT_S = 0.80f;
 
 /* Stage-one guarded command limits. */
-constexpr auto STAGE1_MAX_SPEED_MPS = 2.0f;
+constexpr auto STAGE1_MAX_SPEED_MPS = 0.80f;
 constexpr auto STAGE1_MAX_STEERING_RAD = 0.70f;
 constexpr auto STAGE1_DIAGNOSTIC_MAX_SPEED_MPS = 0.30f;
 constexpr auto STAGE1_DIAGNOSTIC_MAX_STEERING_RAD = 0.35f;
@@ -130,8 +130,29 @@ constexpr auto VEHICLE_CONTROLLED_STOP_TIMEOUT_US = 3000000ULL;
 constexpr auto WHEEL_MISMATCH_MIN_SPEED_MPS = 0.25f;
 constexpr auto WHEEL_MISMATCH_MAX_MPS = 1.20f;
 constexpr auto WHEEL_MISMATCH_TIMEOUT_S = 0.60f;
+constexpr auto STEERING_ENCODER_MAX_DELTA_COUNT_PER_SAMPLE = 1024;
+constexpr auto STEERING_ENCODER_ERROR_LIMIT = 5U;
+constexpr auto STEERING_ENCODER_SPI_TIMEOUT_US = 1000U;
+/* Compatibility constants for the retained MT6701 host adapter. */
 constexpr auto MT6701_MAX_DELTA_COUNT_PER_SAMPLE = 4096;
 constexpr auto MT6701_ERROR_LIMIT = 5U;
+
+/* Stage-one visual guidance. */
+constexpr auto GUIDE_TARGET_TIMEOUT_US = 150000ULL;
+constexpr auto GUIDE_TARGET_MIN_DISTANCE_M = 0.35f;
+constexpr auto FORWARD_FOLLOW_DISTANCE_M = 1.00f;
+constexpr auto FORWARD_LOOKAHEAD_MIN_M = 0.25f;
+constexpr auto FORWARD_LOOKAHEAD_MAX_M = 1.20f;
+constexpr auto FORWARD_DISTANCE_KP = 0.65f;
+constexpr auto FORWARD_CURVATURE_SPEED_GAIN = 0.90f;
+constexpr auto FORWARD_ACCEL_LIMIT_MPS2 = 0.60f;
+constexpr auto FORWARD_DECEL_LIMIT_MPS2 = 0.90f;
+constexpr auto FORWARD_MAX_SPEED_MPS = 0.80f;
+constexpr auto FORWARD_MAX_STEERING_RAD = 0.70f;
+constexpr auto FORWARD_MIN_TAG_WIDTH_M = 0.001f;
+constexpr auto FORWARD_DEFAULT_FX_PX = 160.0f;
+constexpr auto FORWARD_DEFAULT_FY_PX = 160.0f;
+constexpr auto VISION_PROCESS_MAX_US = 18000U;
 
 /* Fixed ring buffers. */
 constexpr auto VEHICLE_LOG_BUFFER_SIZE = 16384U;

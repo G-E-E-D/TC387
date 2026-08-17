@@ -37,11 +37,45 @@ struct WheelEncoderSample
 struct SteeringSample
 {
     uint64_t timestamp_us;
-    uint16_t raw_angle;
-    uint8_t magnetic_status;
+    uint16_t raw_angle;       /* Generic 12-bit raw count; legacy field name. */
+    uint8_t magnetic_status;  /* Reserved for historical SSI diagnostics. */
     int64_t continuous_count;
     int64_t relative_count;
     float angle_rad;
+    uint32_t communication_error_count;
+    uint32_t jump_error_count;
+    bool valid;
+};
+
+struct VehicleGuideTarget
+{
+    uint64_t timestamp_us;
+    uint64_t age_us;
+    uint32_t camera_sequence;
+    int16_t center_x_px;
+    int16_t center_y_px;
+    uint16_t size_px;
+    uint16_t confidence;
+    uint32_t process_us_last;
+    uint32_t process_us_max;
+    float distance_m;
+    float target_x_forward_m;
+    float target_y_left_m;
+    bool valid;
+    bool fresh;
+    bool too_close;
+};
+
+struct VehicleForwardTrackerOutput
+{
+    float aim_x_m;
+    float aim_y_m;
+    float curvature_per_m;
+    float target_speed_mps;
+    float target_steering_rad;
+    float distance_error_m;
+    uint64_t target_age_us;
+    bool target_stale;
     bool valid;
 };
 
@@ -116,6 +150,9 @@ struct VehicleTelemetry
     SteeringSample steering;
     ImuSample imu;
     VehiclePose pose;
+    VehicleGuideTarget guide_target;
+    float desired_follow_distance_m;
+    VehicleForwardTrackerOutput forward_tracker;
     ReverseTrackerOutput tracker;
     float target_speed_mps;
     float target_steering_rad;

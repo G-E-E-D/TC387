@@ -27,13 +27,29 @@ struct VehicleCalibration
     float right_motor_start_duty_forward;
     float right_motor_start_duty_reverse;
 
-    /* Raw DIR sign that physically steers left; positive steering is left. */
+    /* Absolute SPI encoder center and calibrated equivalent-angle limits. */
+    uint16_t steering_encoder_center_raw_count;
     int8_t steering_left_direction;
     float steering_start_duty_left;
     float steering_start_duty_right;
-    /* Relative MT6701 counts measured at the physical left/right limits. */
+    /* Relative 12-bit counts measured at the physical left/right limits. */
     int64_t steering_left_soft_limit_count;
     int64_t steering_right_soft_limit_count;
+
+    /* Camera/tag geometry. Camera yaw and translations use vehicle axes. */
+    float guide_tag_width_m;
+    float camera_fx_px;
+    float camera_fy_px;
+    float camera_cx_px;
+    float camera_cy_px;
+    float camera_position_x_m;
+    float camera_position_y_m;
+    float camera_yaw_rad;
+    float guide_follow_distance_m;
+    float guide_min_safe_distance_m;
+    float stage1_max_speed_mps;
+    float stage1_acceleration_mps2;
+    float stage1_deceleration_mps2;
 
     float imu_position_x_m;
     float imu_position_y_m;

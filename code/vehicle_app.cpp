@@ -13,11 +13,13 @@
 #include "vehicle_localization.h"
 #include "vehicle_log.h"
 #include "vehicle_math.h"
-#include "vehicle_mt6701.h"
 #include "vehicle_path.h"
 #include "vehicle_perception.h"
+#include "vehicle_forward_tracker.h"
+#include "vehicle_guide_target.h"
 #include "vehicle_reverse_tracker.h"
 #include "vehicle_safety.h"
+#include "vehicle_steering_encoder.h"
 #include "vehicle_state_machine.h"
 #include "vehicle_test_mode.h"
 #include "vehicle_vision_camera.h"
@@ -41,10 +43,11 @@ struct VehicleApp
     SteeringCalibrationTables steering_tables;
     VehicleEncoder left_encoder;
     VehicleEncoder right_encoder;
-    VehicleMt6701 mt6701;
+    VehicleSteeringEncoder steering_encoder;
     VehicleImu imu;
     VehicleLocalization localization;
     VehicleControl control;
+    VehicleForwardTracker forward_tracker;
     VehicleReverseTracker reverse_tracker;
     VehicleSafetyMonitor safety;
     VehicleFaultManager faults;
@@ -80,7 +83,7 @@ struct VehicleApp
     float target_steering_rad;
     bool calibration_valid;
     bool localization_ready;
-    bool mt_communication_ok;
+    bool steering_communication_ok;
     bool imu_communication_ok;
     bool path_processing_complete;
     bool path_valid;
@@ -100,6 +103,92 @@ struct VehicleApp
 };
 
 static VehicleApp g_app;
+
+static bool steering_encoder_read_callback(uint16_t *raw_count,
+                                           void *context)
+{
+    static_cast<void>(context);
+    return vehicle_hal_read_steering_raw(raw_count);
+}
+
+static VehicleGuideTargetConfig guide_config_from_calibration()
+{
+    VehicleGuideTargetConfig config;
+    vehicle_guide_target_default_config(&config);
+    if(g_vehicle_calibration.guide_tag_width_m > 0.0f)
+    {
+        config.tag_width_m = g_vehicle_calibration.guide_tag_width_m;
+    }
+    if(g_vehicle_calibration.camera_fx_px > 0.0f)
+    {
+        config.focal_x_px = g_vehicle_calibration.camera_fx_px;
+    }
+    if(g_vehicle_calibration.camera_fy_px > 0.0f)
+    {
+        config.focal_y_px = g_vehicle_calibration.camera_fy_px;
+    }
+    if((g_vehicle_calibration.camera_cx_px >= 0.0f) &&
+       (g_vehicle_calibration.camera_cx_px <
+        static_cast<float>(VISION_TAG_MAX_WIDTH)))
+    {
+        config.principal_x_px = g_vehicle_calibration.camera_cx_px;
+    }
+    if((g_vehicle_calibration.camera_cy_px >= 0.0f) &&
+       (g_vehicle_calibration.camera_cy_px <
+        static_cast<float>(VISION_TAG_MAX_HEIGHT)))
+    {
+        config.principal_y_px = g_vehicle_calibration.camera_cy_px;
+    }
+    if(vehicle_float_is_finite(g_vehicle_calibration.camera_position_x_m))
+    {
+        config.camera_position_x_m = g_vehicle_calibration.camera_position_x_m;
+    }
+    if(vehicle_float_is_finite(g_vehicle_calibration.camera_position_y_m))
+    {
+        config.camera_position_y_m = g_vehicle_calibration.camera_position_y_m;
+    }
+    if(vehicle_float_is_finite(g_vehicle_calibration.camera_yaw_rad))
+    {
+        config.camera_yaw_rad = g_vehicle_calibration.camera_yaw_rad;
+    }
+    if(g_vehicle_calibration.guide_min_safe_distance_m > 0.0f)
+    {
+        config.minimum_safe_distance_m =
+            g_vehicle_calibration.guide_min_safe_distance_m;
+    }
+    return config;
+}
+
+static VehicleForwardTrackerConfig forward_config_from_calibration()
+{
+    VehicleForwardTrackerConfig config;
+    vehicle_forward_tracker_default_config(&config);
+    if(g_vehicle_calibration.guide_follow_distance_m > 0.0f)
+    {
+        config.desired_follow_distance_m =
+            g_vehicle_calibration.guide_follow_distance_m;
+    }
+    if(g_vehicle_calibration.guide_min_safe_distance_m > 0.0f)
+    {
+        config.minimum_safe_distance_m =
+            g_vehicle_calibration.guide_min_safe_distance_m;
+    }
+    if(g_vehicle_calibration.stage1_max_speed_mps > 0.0f)
+    {
+        config.maximum_speed_mps = g_vehicle_calibration.stage1_max_speed_mps;
+    }
+    if(g_vehicle_calibration.stage1_acceleration_mps2 > 0.0f)
+    {
+        config.acceleration_limit_mps2 =
+            g_vehicle_calibration.stage1_acceleration_mps2;
+    }
+    if(g_vehicle_calibration.stage1_deceleration_mps2 > 0.0f)
+    {
+        config.deceleration_limit_mps2 =
+            g_vehicle_calibration.stage1_deceleration_mps2;
+    }
+    return config;
+}
 
 static void log_text(const char *text)
 {
@@ -154,6 +243,7 @@ static bool vehicle_app_commissioning_ready()
 {
     return g_app.hal_status.motor_outputs_ready &&
            g_app.hal_status.rear_encoders_ready &&
+           g_app.hal_status.steering_sensor_ready &&
            g_app.hal_status.imu_ready &&
            g_app.hal_status.timer_ready;
 }
@@ -279,6 +369,7 @@ static void handle_state_entry(uint64_t now_us)
             break;
         case VEHICLE_STATE_STAGE1_RECORD:
             vehicle_control_reset(&g_app.control);
+            vehicle_forward_tracker_reset(&g_app.forward_tracker);
             g_app.target_speed_mps = 0.0f;
             g_app.target_steering_rad = 0.0f;
             stage1_invalidate_external_command();
@@ -293,6 +384,8 @@ static void handle_state_entry(uint64_t now_us)
             g_app.stage1_recording_ended = false;
             g_app.path_processing_complete = false;
             g_app.path_valid = false;
+            g_app.telemetry.guide_target = {};
+            g_app.telemetry.forward_tracker = {};
             g_app.perception_generation = perception_get_command_generation();
             g_app.perception_command_timestamp_us = now_us;
             if(vehicle_path_result_is_error(path_result))
@@ -399,7 +492,17 @@ static void update_steering_angle_from_tables()
         g_app.steering_tables.from_right,
         g_app.steering_tables.from_right_count,
         g_app.telemetry.steering.relative_count, &from_right);
-    if(left_ok && right_ok)
+    if(g_app.control.steering.approach == VEHICLE_STEERING_APPROACH_FROM_LEFT &&
+       left_ok)
+    {
+        g_app.telemetry.steering.angle_rad = from_left;
+    }
+    else if(g_app.control.steering.approach ==
+            VEHICLE_STEERING_APPROACH_FROM_RIGHT && right_ok)
+    {
+        g_app.telemetry.steering.angle_rad = from_right;
+    }
+    else if(left_ok && right_ok)
     {
         g_app.telemetry.steering.angle_rad = 0.5f * (from_left + from_right);
     }
@@ -428,7 +531,6 @@ static void update_stage1_recording(uint64_t now_us)
         static_cast<uint64_t>(RECORD_MAX_TIME_S * 1000000.0f)))
     {
         g_app.stage1_stop_pending = true;
-        end_stage1_recording();
         return;
     }
     if(!g_app.telemetry.pose.valid)
@@ -443,11 +545,9 @@ static void update_stage1_recording(uint64_t now_us)
     if(result == VEHICLE_PATH_RESULT_DISTANCE_LIMIT)
     {
         g_app.stage1_stop_pending = true;
-        g_app.stage1_recording_ended = true;
     }
     else if(vehicle_path_result_is_error(result))
     {
-        g_app.stage1_recording_ended = true;
         request_controlled_stop(
             (result == VEHICLE_PATH_RESULT_OVERFLOW)
                 ? VEHICLE_FAULT_PATH_OVERFLOW
@@ -482,13 +582,8 @@ static void estimator_task(uint64_t now_us)
 {
     uint16_t left_raw;
     uint16_t right_raw;
-    uint16_t mt_ab_raw;
-    uint32_t mt_frame = 0U;
+    VehicleSteeringEncoderSample steering_sample;
     VehicleHalImuRaw imu_raw;
-    bool steering_ok;
-
-    static_cast<void>(mt_ab_raw);
-    static_cast<void>(mt_frame);
 
     vehicle_hal_get_rear_encoder_raw(&left_raw, &right_raw);
     if(g_app.calibration_valid)
@@ -508,24 +603,21 @@ static void estimator_task(uint64_t now_us)
                                   &g_app.diagnostic_right_count, now_us);
     }
 
-#if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_SSI
-    g_app.mt_communication_ok = vehicle_hal_read_mt6701_ssi(&mt_frame);
-    steering_ok = vehicle_mt6701_update_ssi(
-        &g_app.mt6701, mt_frame, now_us, g_app.mt_communication_ok,
-        &g_app.telemetry.steering);
-#elif VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-    g_app.mt_communication_ok = vehicle_hal_get_mt6701_ab_raw(&mt_ab_raw);
-    steering_ok = vehicle_mt6701_update_angle(
-        &g_app.mt6701, mt_ab_raw, 0U, now_us, g_app.mt_communication_ok,
-        &g_app.telemetry.steering);
-#else
-    mt_ab_raw = 0U;
-    g_app.mt_communication_ok = false;
-    steering_ok = vehicle_mt6701_update_angle(
-        &g_app.mt6701, mt_ab_raw, 0U, now_us, false,
-        &g_app.telemetry.steering);
-#endif
-    static_cast<void>(steering_ok);
+    g_app.steering_communication_ok =
+        vehicle_steering_encoder_read(&g_app.steering_encoder, now_us,
+                                       &steering_sample);
+    g_app.telemetry.steering.timestamp_us = steering_sample.timestamp_us;
+    g_app.telemetry.steering.raw_angle = steering_sample.raw_count;
+    g_app.telemetry.steering.magnetic_status = 0U;
+    g_app.telemetry.steering.continuous_count =
+        steering_sample.continuous_count;
+    g_app.telemetry.steering.relative_count =
+        steering_sample.relative_count;
+    g_app.telemetry.steering.communication_error_count =
+        steering_sample.communication_error_count;
+    g_app.telemetry.steering.jump_error_count =
+        steering_sample.jump_error_count;
+    g_app.telemetry.steering.valid = steering_sample.valid;
     update_steering_angle_from_tables();
 
     imu_raw = {};
@@ -556,7 +648,10 @@ static void estimator_task(uint64_t now_us)
             &g_app.localization, now_us,
             &g_app.telemetry.left_wheel, &g_app.telemetry.right_wheel,
             &g_app.telemetry.imu, g_app.telemetry.steering.angle_rad,
-            g_app.telemetry.steering.valid, &g_app.telemetry.pose));
+            g_app.telemetry.steering.valid &&
+            vehicle_steering_encoder_is_fresh(
+                &g_app.steering_encoder, now_us, VEHICLE_SENSOR_TIMEOUT_US),
+            &g_app.telemetry.pose));
     }
     else
     {
@@ -576,37 +671,61 @@ static void estimator_task(uint64_t now_us)
 
 static void tracker_task(uint64_t now_us)
 {
-    uint32_t generation;
-    Stage1ControlCommand stage1_command;
+    VehicleGuideTarget guide_target;
+    VehicleForwardTrackerInput forward_input;
+    VehicleForwardTrackerStatus forward_status;
     VehicleReverseTrackerInput input;
     VehicleReverseTrackerStatus status;
     float dt_s;
 
     if(g_app.state_machine.state == VEHICLE_STATE_STAGE1_RECORD)
     {
-        perception_update();
-        generation = perception_get_command_generation();
-        if(generation != g_app.perception_generation)
-        {
-            g_app.perception_generation = generation;
-            g_app.perception_command_timestamp_us = now_us;
-        }
-        if(!g_app.stage1_stop_pending &&
-           perception_get_stage1_command(&stage1_command) &&
-           (now_us >= g_app.perception_command_timestamp_us) &&
-           ((now_us - g_app.perception_command_timestamp_us) <=
-            VEHICLE_COMMAND_TIMEOUT_US))
-        {
-            g_app.target_speed_mps = vehicle_clampf(
-                stage1_command.target_speed_mps, 0.0f, STAGE1_MAX_SPEED_MPS);
-            g_app.target_steering_rad = vehicle_clampf(
-                stage1_command.target_steering_rad,
-                -STAGE1_MAX_STEERING_RAD, STAGE1_MAX_STEERING_RAD);
-        }
-        else
+        perception_update(now_us);
+        static_cast<void>(perception_get_guide_target(&guide_target));
+        forward_input = {};
+        forward_input.guide_x_m = guide_target.target_x_forward_m;
+        forward_input.guide_y_m = guide_target.target_y_left_m;
+        forward_input.measured_speed_mps =
+            g_app.telemetry.pose.vehicle_speed_mps;
+        dt_s = (g_app.last_tracker_timestamp_us == 0U)
+            ? (static_cast<float>(VEHICLE_TRACKER_PERIOD_US) * 1.0e-6f)
+            : static_cast<float>(now_us - g_app.last_tracker_timestamp_us) * 1.0e-6f;
+        g_app.last_tracker_timestamp_us = now_us;
+        forward_input.dt_s = vehicle_clampf(dt_s, LOCALIZATION_MIN_DT_S,
+                                            LOCALIZATION_MAX_DT_S);
+        forward_input.target_timestamp_us = guide_target.timestamp_us;
+        forward_input.target_age_us = guide_target.age_us;
+        forward_input.target_valid = guide_target.valid && guide_target.fresh &&
+                                     !guide_target.too_close;
+        forward_input.target_confidence = guide_target.confidence;
+        forward_input.target_is_new =
+            guide_target.camera_sequence != g_app.telemetry.guide_target.camera_sequence;
+        forward_input.distance_stable = guide_target.distance_m > 0.0f;
+        forward_input.localization_quality = g_app.telemetry.pose.valid
+            ? (g_app.telemetry.pose.wheel_slip ? 0.35f : 1.0f) : 0.0f;
+        forward_input.steering_quality = g_app.telemetry.steering.valid ? 1.0f : 0.0f;
+        g_app.telemetry.guide_target = guide_target;
+        forward_status = vehicle_forward_tracker_update(
+            &g_app.forward_tracker, &forward_input,
+            &g_app.telemetry.forward_tracker);
+        if(g_app.stage1_stop_pending || g_app.controlled_stop_active)
         {
             g_app.target_speed_mps = 0.0f;
             g_app.target_steering_rad = 0.0f;
+        }
+        else
+        {
+            g_app.target_speed_mps = vehicle_clampf(
+                g_app.telemetry.forward_tracker.target_speed_mps,
+                0.0f, STAGE1_MAX_SPEED_MPS);
+            g_app.target_steering_rad = vehicle_clampf(
+                g_app.telemetry.forward_tracker.target_steering_rad,
+                -STAGE1_MAX_STEERING_RAD, STAGE1_MAX_STEERING_RAD);
+        }
+        if(forward_status == VEHICLE_FORWARD_TRACKER_NUMERIC_ERROR)
+        {
+            vehicle_fault_raise(&g_app.faults, VEHICLE_FAULT_NUMERIC,
+                                true, now_us);
         }
         return;
     }
@@ -755,7 +874,8 @@ static void safety_task(uint64_t now_us)
         g_app.control_output.drive.right_target_speed_mps;
     inputs.left_motor_duty = g_app.telemetry.actuators.left_motor_duty;
     inputs.right_motor_duty = g_app.telemetry.actuators.right_motor_duty;
-    inputs.mt6701_communication_ok = g_app.mt_communication_ok;
+    inputs.steering_communication_ok = g_app.steering_communication_ok;
+    inputs.mt6701_communication_ok = g_app.steering_communication_ok;
     inputs.steering = g_app.telemetry.steering;
     inputs.steering_motor_duty =
         g_app.telemetry.actuators.steering_motor_duty;
@@ -769,6 +889,8 @@ static void safety_task(uint64_t now_us)
     inputs.path_capacity = PATH_MAX_POINTS;
     inputs.path_index_valid = tracker_index_valid;
     inputs.tracker = g_app.telemetry.tracker;
+    inputs.guide_target = g_app.telemetry.guide_target;
+    inputs.forward_tracker = g_app.telemetry.forward_tracker;
     inputs.controlled_stop_in_progress = g_app.controlled_stop_active;
     inputs.numeric_valid = true;
     inputs.additional_numeric_values = numeric_values;
@@ -859,6 +981,7 @@ static void print_configuration()
 static void handle_diagnostic_request(const VehicleDiagnosticRequest *request,
                                       uint64_t now_us)
 {
+    VehicleGuideTarget guide_target;
     if(request == nullptr)
     {
         return;
@@ -898,9 +1021,9 @@ static void handle_diagnostic_request(const VehicleDiagnosticRequest *request,
             {
                 log_text("# DENIED,STEER ZERO requires stopped CALIBRATION_MODE\r\n");
             }
-            else if(!vehicle_mt6701_set_relative_zero(&g_app.mt6701))
+            else
             {
-                log_text("# DENIED,steering sample not valid\r\n");
+                log_text("# DENIED,SPI steering center is fixed calibration data; update vehicle_calibration.cpp\r\n");
             }
             break;
         case VEHICLE_DIAG_STEERING_LIMIT_LEFT:
@@ -936,8 +1059,13 @@ static void handle_diagnostic_request(const VehicleDiagnosticRequest *request,
             }
             break;
         case VEHICLE_DIAG_STAGE1_START:
+            perception_update(now_us);
+            static_cast<void>(perception_get_guide_target(&guide_target));
             if(g_app.calibration_valid &&
                g_app.hal_status.critical_ready &&
+               g_app.localization_ready &&
+               g_app.telemetry.steering.valid &&
+               guide_target.valid && guide_target.fresh &&
                (g_app.state_machine.state == VEHICLE_STATE_IDLE ||
                 g_app.state_machine.state == VEHICLE_STATE_CALIBRATION_MODE))
             {
@@ -945,7 +1073,7 @@ static void handle_diagnostic_request(const VehicleDiagnosticRequest *request,
             }
             else
             {
-                log_text("# DENIED,stage1 requires all drivers, valid calibration and IDLE/CAL mode\r\n");
+                log_text("# DENIED,stage1 requires calibrated sensors, a fresh guide tag and IDLE/CAL mode\r\n");
             }
             break;
         case VEHICLE_DIAG_STAGE1_DRIVE:
@@ -1023,6 +1151,16 @@ static void handle_diagnostic_request(const VehicleDiagnosticRequest *request,
                 VEHICLE_FAULT_PATH_INDEX_LOST |
                 VEHICLE_FAULT_TRACKING_ERROR |
                 VEHICLE_FAULT_WHEEL_MISMATCH |
+                VEHICLE_FAULT_STEERING_ENCODER_COMM |
+                VEHICLE_FAULT_STEERING_ENCODER_JUMP |
+                VEHICLE_FAULT_STEERING_TIMEOUT |
+                VEHICLE_FAULT_STEERING_CENTER |
+                VEHICLE_FAULT_VISION_FRAME_STALE |
+                VEHICLE_FAULT_VISION_TAG_LOST |
+                VEHICLE_FAULT_VISION_TAG_CONFIDENCE |
+                VEHICLE_FAULT_VISION_POSITION |
+                VEHICLE_FAULT_VISION_PROCESS |
+                VEHICLE_FAULT_FORWARD_TRACKER |
                 VEHICLE_FAULT_STEERING_STALL |
                 VEHICLE_FAULT_NUMERIC,
                 false, false, now_us);
@@ -1139,6 +1277,8 @@ static void update_telemetry(uint64_t now_us)
     g_app.telemetry.state = g_app.state_machine.state;
     g_app.telemetry.path_point_count = info.point_count;
     g_app.telemetry.path_length_m = info.length_m;
+    g_app.telemetry.desired_follow_distance_m =
+        g_app.forward_tracker.config.desired_follow_distance_m;
     g_app.telemetry.fault_flags = g_app.faults.active_flags |
                                   g_app.controlled_stop_fault_flags;
     g_app.telemetry.latched_fault_flags = g_app.faults.latched_flags;
@@ -1166,11 +1306,35 @@ bool vehicle_app_init()
     perception_init();
     vehicle_path_reset();
     vehicle_reverse_tracker_reset(&g_app.reverse_tracker);
-    vehicle_mt6701_init(&g_app.mt6701);
+    {
+        VehicleSteeringEncoderConfig encoder_config;
+        VehicleSteeringEncoderIo encoder_io;
+        VehicleGuideTargetConfig guide_config = guide_config_from_calibration();
+        VehicleForwardTrackerConfig forward_config =
+            forward_config_from_calibration();
+
+        vehicle_steering_encoder_default_config(&encoder_config);
+        encoder_config.center_raw_count =
+            g_vehicle_calibration.steering_encoder_center_raw_count;
+        encoder_config.maximum_delta_count =
+            STEERING_ENCODER_MAX_DELTA_COUNT_PER_SAMPLE;
+        encoder_io.read_raw = steering_encoder_read_callback;
+        encoder_io.context = nullptr;
+        static_cast<void>(vehicle_steering_encoder_init(
+            &g_app.steering_encoder, &encoder_config, &encoder_io));
+        perception_configure(&guide_config);
+        static_cast<void>(vehicle_forward_tracker_init(
+            &g_app.forward_tracker, &forward_config));
+    }
 
     g_app.steering_tables = vehicle_calibration_get_steering_tables();
     g_app.calibration_valid = vehicle_calibration_is_valid(
         &g_vehicle_calibration, &g_app.steering_tables);
+    if(g_vehicle_calibration.steering_encoder_center_raw_count > 4095U)
+    {
+        vehicle_fault_raise(&g_app.faults, VEHICLE_FAULT_STEERING_CENTER,
+                            true, 0U);
+    }
     static_cast<void>(vehicle_encoder_init(&g_app.left_encoder,
         g_vehicle_calibration.left_encoder_forward_sign,
         g_vehicle_calibration.left_meter_per_count));
@@ -1219,11 +1383,7 @@ bool vehicle_app_init()
                             true, now_us);
     }
     log_text("# TC387 vehicle controller boot; UART0 460800 8N1; send HELP\r\n");
-    if(VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_UNCONFIRMED)
-    {
-        log_text("# BLOCKED: automatic mode needs MT6701 P5 protocol/line order; select SSI or AB in vehicle_hardware_config.h\r\n");
-    }
-    log_text("# DRIVE speed_mps steering_rad: STAGE1 only, max 0.30 m/s and 0.35 rad, repeat within 150 ms\r\n");
+    log_text("# AUTO STAGE1: guide target + forward Pure Pursuit; DRIVE is maintenance only\r\n");
     print_configuration();
     update_state_machine(now_us);
     update_telemetry(now_us);

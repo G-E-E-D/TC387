@@ -24,6 +24,7 @@ static void vehicle_localization_clear_diagnostics(
     diagnostics->wheel_speed_residual_mps = 0.0f;
     diagnostics->imu_wheel_residual_radps = 0.0f;
     diagnostics->imu_steering_residual_radps = 0.0f;
+    diagnostics->wheel_steering_residual_radps = 0.0f;
     diagnostics->model_disagreement = false;
     diagnostics->imu_suspect = false;
 }
@@ -404,6 +405,8 @@ bool vehicle_localization_update(VehicleLocalization *localization,
         omega_imu_radps - omega_wheel_radps;
     localization->diagnostics.imu_steering_residual_radps =
         steering_valid ? (omega_imu_radps - omega_steering_radps) : 0.0f;
+    localization->diagnostics.wheel_steering_residual_radps =
+        steering_valid ? (omega_wheel_radps - omega_steering_radps) : 0.0f;
     localization->diagnostics.model_disagreement = model_disagreement;
     localization->diagnostics.imu_suspect = imu_suspect;
 

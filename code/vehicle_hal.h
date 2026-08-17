@@ -36,24 +36,6 @@ struct VehicleHalImuRaw
     bool magnetometer_communication_ok;
 };
 
-struct VehicleMt6701AbStatus
-{
-    uint16_t raw;
-    uint16_t timer_count;
-    int64_t continuous_count;
-    int64_t last_index_interval_count;
-    int32_t last_hardware_delta;
-    uint8_t a_level;
-    uint8_t b_level;
-    uint8_t z_level;
-    uint8_t dir_level;
-    uint32_t index_pulse_count;
-    uint32_t invalid_transition_count;
-    uint32_t dir_mismatch_count;
-    bool index_seen;
-    bool last_index_interval_valid;
-};
-
 void vehicle_hal_force_safe_outputs();
 VehicleHalStatus vehicle_hal_init();
 uint64_t vehicle_hal_now_us();
@@ -65,9 +47,8 @@ bool vehicle_hal_clear_control_watchdog_fault();
 void vehicle_hal_capture_encoder_counts();
 void vehicle_hal_get_rear_encoder_raw(uint16_t *left, uint16_t *right);
 void vehicle_hal_zero_rear_encoder_raw();
-bool vehicle_hal_read_mt6701_ssi(uint32_t *frame_24bits);
-bool vehicle_hal_get_mt6701_ab_raw(uint16_t *synthetic_raw);
-bool vehicle_hal_get_mt6701_ab_status(VehicleMt6701AbStatus *status);
+/* Returns the 12-bit SPI encoder count after a bounded two-byte transaction. */
+bool vehicle_hal_read_steering_raw(uint16_t *raw_count);
 bool vehicle_hal_read_imu(VehicleHalImuRaw *raw);
 void vehicle_hal_get_imu_scale(float *acceleration_mps2_per_lsb,
                                float *angular_rate_radps_per_lsb,

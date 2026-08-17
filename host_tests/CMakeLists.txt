@@ -13,12 +13,17 @@ add_executable(vehicle_host_tests
     ../code/vehicle_diagnostics.cpp
     ../code/vehicle_encoder.cpp
     ../code/vehicle_fault.cpp
+    ../code/vehicle_forward_tracker.cpp
+    ../code/vehicle_guide_target.cpp
+    ../code/vehicle_display.cpp
+    ../code/vehicle_log.cpp
     ../code/vehicle_localization.cpp
     ../code/vehicle_math.cpp
     ../code/vehicle_mt6701.cpp
     ../code/vehicle_path.cpp
     ../code/vehicle_reverse_tracker.cpp
     ../code/vehicle_safety.cpp
+    ../code/vehicle_steering_encoder.cpp
     ../code/vehicle_state_machine.cpp
 )
 

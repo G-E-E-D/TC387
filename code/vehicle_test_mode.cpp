@@ -3,6 +3,7 @@
 #include "vehicle_config.h"
 #include "vehicle_hal.h"
 #include "vehicle_hardware_config.h"
+#include "vehicle_steering_encoder.h"
 #include "vehicle_vision_camera.h"
 #include "vision_shared.h"
 
@@ -45,7 +46,8 @@ struct VehicleTestState
     int16_t right_delta;
     bool rear_sample_seen;
     uint16_t steering_raw;
-    VehicleMt6701AbStatus steering_status;
+    uint16_t steering_raw;
+    uint16_t previous_steering_raw;
     VehicleHalImuRaw imu;
     bool imu_read_ok;
     vision_runtime_snapshot_t vision;
@@ -124,7 +126,7 @@ static void sample_inputs(uint64_t now_us)
 {
     uint16_t left_raw;
     uint16_t right_raw;
-    VehicleMt6701AbStatus steering_status;
+    uint16_t current_steering_raw;
     vehicle_hal_get_rear_encoder_raw(&left_raw, &right_raw);
     if(g_test.rear_sample_seen)
     {
@@ -144,10 +146,10 @@ static void sample_inputs(uint64_t now_us)
     g_test.previous_left_raw = left_raw;
     g_test.previous_right_raw = right_raw;
 
-    if(vehicle_hal_get_mt6701_ab_status(&steering_status))
+    if(vehicle_hal_read_steering_raw(&current_steering_raw))
     {
-        g_test.steering_status = steering_status;
-        g_test.steering_raw = steering_status.raw;
+        g_test.previous_steering_raw = g_test.steering_raw;
+        g_test.steering_raw = current_steering_raw;
     }
 
     g_test.imu = {};
@@ -274,34 +276,17 @@ static void render_encoders()
 
 static void render_steering()
 {
-    test_line(0U, "TEST 3/6 MT6701 AB");
-    test_line(1U, "ph14:%u cnt:%lld", static_cast<unsigned int>(g_test.steering_raw),
-              static_cast<long long>(g_test.steering_status.continuous_count));
-    test_line(2U, "T5:%u d:%ld", static_cast<unsigned int>(
-              g_test.steering_status.timer_count), static_cast<long>(
-              g_test.steering_status.last_hardware_delta));
-    test_line(3U, "SRC A:P10.3 D:P10.1");
-    test_line(4U, "B:P10.2 Z:P10.5");
-    test_line(5U, "A:%u B:%u Z:%u D:%u",
-              static_cast<unsigned int>(g_test.steering_status.a_level),
-              static_cast<unsigned int>(g_test.steering_status.b_level),
-              static_cast<unsigned int>(g_test.steering_status.z_level),
-              static_cast<unsigned int>(g_test.steering_status.dir_level));
-    test_line(6U, "IDX:%lu SEEN:%c",
-              static_cast<unsigned long>(g_test.steering_status.index_pulse_count),
-              g_test.steering_status.index_seen ? 'Y' : 'N');
-    if(g_test.steering_status.last_index_interval_valid)
-    {
-        test_line(7U, "dZ:%lld", static_cast<long long>(
-                  g_test.steering_status.last_index_interval_count));
-    }
-    else
-    {
-        test_line(7U, "dZ:wait next Z");
-    }
-    test_line(8U, "SW:%lu/%lu Z:no reset", static_cast<unsigned long>(
-              g_test.steering_status.invalid_transition_count),
-              static_cast<unsigned long>(g_test.steering_status.dir_mismatch_count));
+    test_line(0U, "TEST 3/6 SPI1 STEERING");
+    test_line(1U, "raw12:%u", static_cast<unsigned int>(g_test.steering_raw));
+    test_line(2U, "d12:%d", static_cast<int>(
+              vehicle_steering_encoder_delta12(g_test.steering_raw,
+                                                g_test.previous_steering_raw)));
+    test_line(3U, "SCLK P10.2 MISO P10.1");
+    test_line(4U, "MOSI P10.3 CS P10.5");
+    test_line(5U, "MODE0 2MHz 12-bit");
+    test_line(6U, "fixed raw center in CAL");
+    test_line(7U, "crosses 4095/0 safely");
+    test_line(8U, "no TIM5 AB/DIR path");
     test_line(9U, "K1 next  K2 stop");
 }
 

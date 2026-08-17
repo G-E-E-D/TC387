@@ -14,6 +14,7 @@ struct VehicleLocalizationDiagnostics
     float wheel_speed_residual_mps;
     float imu_wheel_residual_radps;
     float imu_steering_residual_radps;
+    float wheel_steering_residual_radps;
     bool model_disagreement;
     bool imu_suspect;
 };

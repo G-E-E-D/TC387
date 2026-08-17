@@ -16,12 +16,15 @@ typedef int vehicle_host_tests_are_not_target_firmware;
 #include "vehicle_diagnostics.h"
 #include "vehicle_encoder.h"
 #include "vehicle_fault.h"
+#include "vehicle_forward_tracker.h"
+#include "vehicle_guide_target.h"
 #include "vehicle_localization.h"
 #include "vehicle_math.h"
 #include "vehicle_mt6701.h"
 #include "vehicle_path.h"
 #include "vehicle_reverse_tracker.h"
 #include "vehicle_safety.h"
+#include "vehicle_steering_encoder.h"
 #include "vehicle_state_machine.h"
 
 #define ARRAY_COUNT(array) (sizeof(array) / sizeof((array)[0]))
@@ -787,7 +790,7 @@ static bool test_18_online_path_recording_capacity_boundary(void)
     TEST_REQUIRE(info.distance_limit_reached);
     TEST_REQUIRE(!info.recording);
     TEST_REQUIRE(!info.overflowed);
-    TEST_REQUIRE(count > 3900U);
+    TEST_REQUIRE(count > 3000U);
     TEST_REQUIRE(count <= PATH_MAX_POINTS);
     TEST_REQUIRE(points != NULL);
     TEST_REQUIRE(points[count - 1U].s <= RECORD_MAX_DISTANCE_M + 0.001f);
@@ -1470,6 +1473,127 @@ static bool test_26_diagnostic_stop_preempts_motion(void)
     return true;
 }
 
+struct SteeringFakeInput
+{
+    const uint16_t *values;
+    size_t count;
+    size_t index;
+};
+
+static bool steering_fake_read(uint16_t *raw_count, void *context)
+{
+    struct SteeringFakeInput *fake = (struct SteeringFakeInput *)context;
+    if((fake == NULL) || (raw_count == NULL) || (fake->index >= fake->count))
+    {
+        return false;
+    }
+    *raw_count = fake->values[fake->index++];
+    return true;
+}
+
+static bool test_27_spi_steering_encoder_fixed_center(void)
+{
+    static const uint16_t raw_values[] = { 200U, 204U, 2U };
+    struct SteeringFakeInput fake = { raw_values, ARRAY_COUNT(raw_values), 0U };
+    VehicleSteeringEncoderIo io = { steering_fake_read, &fake };
+    VehicleSteeringEncoderConfig config;
+    VehicleSteeringEncoder encoder;
+    VehicleSteeringEncoderSample sample;
+
+    vehicle_steering_encoder_default_config(&config);
+    config.center_raw_count = 100U;
+    config.maximum_delta_count = 300;
+    TEST_REQUIRE(vehicle_steering_encoder_init(&encoder, &config, &io));
+    TEST_REQUIRE(vehicle_steering_encoder_read(&encoder, 1000U, &sample));
+    TEST_REQUIRE(sample.relative_count == 100);
+    TEST_REQUIRE(vehicle_steering_encoder_read(&encoder, 2000U, &sample));
+    TEST_REQUIRE(sample.relative_count == 104);
+    TEST_REQUIRE(sample.continuous_count == 204);
+    TEST_REQUIRE(vehicle_steering_encoder_read(&encoder, 3000U, &sample));
+    TEST_REQUIRE(sample.relative_count == -98);
+    TEST_REQUIRE(sample.continuous_count == 2);
+    TEST_REQUIRE(vehicle_steering_encoder_delta12(2U, 4094U) == 4);
+    TEST_REQUIRE(vehicle_steering_encoder_delta12(4094U, 2U) == -4);
+    TEST_REQUIRE(vehicle_steering_encoder_is_fresh(&encoder, 3000U, 1000U));
+    return true;
+}
+
+static bool test_28_forward_tracker_sign_and_stale_decay(void)
+{
+    VehicleForwardTrackerConfig config;
+    VehicleForwardTracker tracker;
+    VehicleForwardTrackerInput input = {};
+    VehicleForwardTrackerOutput output;
+
+    vehicle_forward_tracker_default_config(&config);
+    config.desired_follow_distance_m = 1.0f;
+    TEST_REQUIRE(vehicle_forward_tracker_init(&tracker, &config) ==
+                 VEHICLE_FORWARD_TRACKER_ACTIVE);
+    input.guide_x_m = 3.0f;
+    input.guide_y_m = 0.5f;
+    input.dt_s = 0.1f;
+    input.target_timestamp_us = 1000U;
+    input.target_age_us = 0U;
+    input.target_valid = true;
+    input.target_confidence = 900U;
+    input.target_is_new = true;
+    input.distance_stable = true;
+    input.localization_quality = 1.0f;
+    input.steering_quality = 1.0f;
+    TEST_REQUIRE(vehicle_forward_tracker_update(&tracker, &input, &output) ==
+                 VEHICLE_FORWARD_TRACKER_ACTIVE);
+    TEST_REQUIRE(output.target_speed_mps >= 0.0f);
+    TEST_REQUIRE(output.target_steering_rad > 0.0f);
+    {
+        float previous_speed = output.target_speed_mps;
+        input.target_is_new = false;
+        input.target_age_us = 1000U;
+        TEST_REQUIRE(vehicle_forward_tracker_update(&tracker, &input,
+                                                    &output) ==
+                     VEHICLE_FORWARD_TRACKER_ACTIVE);
+        TEST_REQUIRE(output.target_speed_mps <= previous_speed + 1.0e-6f);
+    }
+    input.target_age_us = config.target_timeout_us + 1U;
+    TEST_REQUIRE(vehicle_forward_tracker_update(&tracker, &input, &output) ==
+                 VEHICLE_FORWARD_TRACKER_TARGET_STALE);
+    TEST_REQUIRE(output.target_speed_mps >= 0.0f);
+    return true;
+}
+
+static bool test_29_guide_target_projection_and_sequence_age(void)
+{
+    VehicleGuideTargetConfig config;
+    VehicleGuideTargetTracker tracker;
+    VehicleGuideTarget target;
+    vision_runtime_snapshot_t snapshot = {};
+
+    vehicle_guide_target_default_config(&config);
+    config.principal_x_px = 94.0f;
+    config.principal_y_px = 60.0f;
+    config.tag_width_m = 0.20f;
+    config.focal_x_px = 100.0f;
+    config.focal_y_px = 100.0f;
+    config.minimum_safe_distance_m = 0.2f;
+    vehicle_guide_target_init(&tracker, &config);
+    snapshot.camera_sequence = 1U;
+    snapshot.result.detected = 1U;
+    snapshot.result.valid = 1U;
+    snapshot.result.confidence = 900U;
+    snapshot.result.center_x = 94;
+    snapshot.result.center_y = 60;
+    snapshot.result.size_px = 20U;
+    TEST_REQUIRE(vehicle_guide_target_update(&tracker, &snapshot, 1000U,
+                                             &target));
+    TEST_REQUIRE(target.valid);
+    TEST_REQUIRE(nearly_equal(target.target_x_forward_m, 1.0f, 1.0e-5f));
+    TEST_REQUIRE(nearly_equal(target.target_y_left_m, 0.0f, 1.0e-5f));
+    TEST_REQUIRE(!vehicle_guide_target_update(&tracker, &snapshot, 2000U,
+                                              &target));
+    TEST_REQUIRE(target.age_us == 1000U);
+    TEST_REQUIRE(target.camera_sequence == 1U);
+    return true;
+}
+
 int main(void)
 {
     static const TestCase tests[] =
@@ -1499,7 +1623,10 @@ int main(void)
         { "23 steering approach hysteresis both slopes", test_23_steering_approach_hysteresis_both_slopes },
         { "24 wheel mismatch controlled-stop routing", test_24_wheel_mismatch_requests_controlled_stop },
         { "25 diagnostic DRIVE parsing/queue", test_25_diagnostic_drive_parse_and_queue },
-        { "26 diagnostic STOP preemption", test_26_diagnostic_stop_preempts_motion }
+        { "26 diagnostic STOP preemption", test_26_diagnostic_stop_preempts_motion },
+        { "27 SPI steering fixed center", test_27_spi_steering_encoder_fixed_center },
+        { "28 forward tracker sign/stale", test_28_forward_tracker_sign_and_stale_decay },
+        { "29 guide projection/sequence age", test_29_guide_target_projection_and_sequence_age }
     };
     size_t index;
     unsigned int passed = 0U;

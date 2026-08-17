@@ -5,6 +5,8 @@
 #include "vehicle_math.h"
 
 #include "zf_common_headfile.h"
+#include "IfxQspi.h"
+#include "IFXQSPI_REGDEF.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -24,26 +26,193 @@ static uint64_t g_time_start_ticks;
 static uint32_t g_time_frequency_hz;
 static uint16_t g_left_encoder_raw;
 static uint16_t g_right_encoder_raw;
-#if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-static uint16_t g_mt6701_ab_raw;
-static uint16_t g_mt6701_ab_timer_previous;
-static int32_t g_mt6701_ab_last_hardware_delta;
-static int64_t g_mt6701_ab_continuous_count;
-static int64_t g_mt6701_ab_last_index_count;
-static int64_t g_mt6701_ab_last_index_interval_count;
-static uint8_t g_mt6701_ab_state;
-static uint8_t g_mt6701_ab_z_active;
-static uint32_t g_mt6701_ab_index_pulse_count;
-static uint32_t g_mt6701_ab_invalid_transition_count;
-static uint32_t g_mt6701_ab_dir_mismatch_count;
-static bool g_mt6701_ab_index_seen;
-static bool g_mt6701_ab_last_index_interval_valid;
-#endif
 static int16_t g_last_imu_motion_raw[7];
 static uint32_t g_imu_unchanged_count;
 static uint8_t g_previous_keys;
 static bool g_time_initialized;
 static bool g_imu_sample_seen;
+
+extern "C"
+{
+    /* Reuse the BACON word prepared by zf_driver_spi, but poll the FIFO with
+       a deadline so a missing encoder cannot hang the estimator task. */
+    extern Ifx_QSPI_BACON bacon[5];
+}
+
+static bool steering_spi_timed_out(uint32_t start_us)
+{
+    return (static_cast<uint32_t>(system_getval_us()) - start_us) >=
+           STEERING_ENCODER_SPI_TIMEOUT_US;
+}
+
+static bool steering_spi_wait_expired(uint32_t start_us,
+                                      uint32_t *poll_budget)
+{
+    if(steering_spi_timed_out(start_us) ||
+       (poll_budget == nullptr) || (*poll_budget == 0U))
+    {
+        return true;
+    }
+    --(*poll_budget);
+    return false;
+}
+
+static void steering_spi_clear(Ifx_QSPI *module)
+{
+    uint32_t fifo_level = module->STATUS.B.RXFIFOLEVEL;
+    while(fifo_level > 0U)
+    {
+        static_cast<void>(IfxQspi_readReceiveFifo(module));
+        --fifo_level;
+    }
+    IfxQspi_clearAllEventFlags(module);
+}
+
+static bool steering_spi_transfer_bounded(const uint8_t *write_buffer,
+                                          uint8_t *read_buffer,
+                                          uint32_t length)
+{
+    Ifx_QSPI *module = IfxQspi_getAddress(
+        static_cast<IfxQspi_Index>(VEHICLE_STEERING_ENCODER_SPI_INDEX));
+    const uint32_t start_us = system_getval_us();
+    uint32_t poll_budget = 100000U;
+
+    if((module == nullptr) || (write_buffer == nullptr) || (length == 0U))
+    {
+        return false;
+    }
+
+    IfxQspi_writeBasicConfigurationBeginStream(
+        module, bacon[VEHICLE_STEERING_ENCODER_SPI_INDEX].U);
+    steering_spi_clear(module);
+
+    do
+    {
+        if(length == 1U)
+        {
+            IfxQspi_writeBasicConfigurationEndStream(
+                module, bacon[VEHICLE_STEERING_ENCODER_SPI_INDEX].U);
+        }
+        if(steering_spi_wait_expired(start_us, &poll_budget))
+        {
+            goto timeout;
+        }
+
+        IfxQspi_writeTransmitFifo(module, *write_buffer++);
+        if(read_buffer != nullptr)
+        {
+            while(module->STATUS.B.RXFIFOLEVEL == 0U)
+            {
+                if(steering_spi_wait_expired(start_us, &poll_budget))
+                {
+                    goto timeout;
+                }
+            }
+            *read_buffer++ = static_cast<uint8_t>(IfxQspi_readReceiveFifo(module));
+        }
+        else
+        {
+            while(module->STATUS.B.TXFIFOLEVEL != 0U)
+            {
+                if(steering_spi_wait_expired(start_us, &poll_budget))
+                {
+                    goto timeout;
+                }
+            }
+        }
+    } while(--length);
+
+    while(module->STATUS.B.PT1F == 0U)
+    {
+        if(steering_spi_wait_expired(start_us, &poll_budget))
+        {
+            goto timeout;
+        }
+    }
+
+    IfxQspi_clearAllEventFlags(module);
+    return true;
+
+timeout:
+    IfxQspi_writeBasicConfigurationEndStream(
+        module, bacon[VEHICLE_STEERING_ENCODER_SPI_INDEX].U);
+    steering_spi_clear(module);
+    return false;
+}
+
+static bool steering_spi_read_register(uint8_t reg, uint8_t *value)
+{
+    uint8_t command[2] = { static_cast<uint8_t>(reg | 0x40U), 0U };
+    uint8_t response[2] = { 0U, 0U };
+
+    if(value == nullptr || !steering_spi_transfer_bounded(
+           command, response, 2U))
+    {
+        return false;
+    }
+    system_delay_us(1U);
+    command[0] = 0U;
+    command[1] = 0U;
+    response[0] = 0U;
+    response[1] = 0U;
+    if(!steering_spi_transfer_bounded(command, response, 2U))
+    {
+        return false;
+    }
+    *value = response[0];
+    return true;
+}
+
+static bool steering_spi_write_register(uint8_t reg, uint8_t value)
+{
+    uint8_t command[2] = { static_cast<uint8_t>(reg | 0x80U), value };
+    uint8_t response[2] = { 0U, 0U };
+
+    if(!steering_spi_transfer_bounded(command, response, 2U))
+    {
+        return false;
+    }
+    system_delay_us(1U);
+    command[0] = 0U;
+    command[1] = 0U;
+    response[0] = 0U;
+    response[1] = 0U;
+    return steering_spi_transfer_bounded(command, response, 2U);
+}
+
+static bool steering_spi_self_check()
+{
+    static const uint8_t defaults[6] = { 0U, 0U, 0U, 0xC0U, 0xFFU, 0x1CU };
+    uint8_t status = 0U;
+    uint32_t attempt;
+    uint8_t index;
+
+    for(attempt = 0U; attempt <= 100U; ++attempt)
+    {
+        if(!steering_spi_read_register(6U, &status))
+        {
+            return false;
+        }
+        if(status == 0x1CU)
+        {
+            /* Keep the sensor's direction/zero registers deterministic; the
+               vehicle still applies its measured center in software. */
+            return steering_spi_write_register(0x09U, 0x00U) &&
+                   steering_spi_write_register(0x00U, 0x00U) &&
+                   steering_spi_write_register(0x01U, 0x00U);
+        }
+        for(index = 0U; index < 6U; ++index)
+        {
+            if(!steering_spi_write_register(static_cast<uint8_t>(index + 1U),
+                                            defaults[index]))
+            {
+                return false;
+            }
+            system_delay_ms(1U);
+        }
+    }
+    return false;
+}
 
 static uint32_t duty_to_counts(float duty)
 {
@@ -85,52 +254,6 @@ static void set_raw_test_motor(pwm_channel_enum pwm_pin,
     pwm_set_duty(pwm_pin, duty);
 }
 
-#if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-static uint8_t mt6701_ab_read_state()
-{
-    uint8_t state = 0U;
-    if(gpio_get_level(VEHICLE_MT6701_AB_A_PIN) == GPIO_HIGH)
-    {
-        state |= 2U;
-    }
-    if(gpio_get_level(VEHICLE_MT6701_AB_B_PIN) == GPIO_HIGH)
-    {
-        state |= 1U;
-    }
-    return state;
-}
-
-static int8_t mt6701_ab_transition_delta(uint8_t previous, uint8_t current)
-{
-    uint8_t transition = static_cast<uint8_t>((previous << 2U) | current);
-    switch(transition)
-    {
-        case 0x01U:
-        case 0x07U:
-        case 0x0EU:
-        case 0x08U:
-            return 1;
-        case 0x02U:
-        case 0x0BU:
-        case 0x0DU:
-        case 0x04U:
-            return -1;
-        default:
-            return 0;
-    }
-}
-
-static uint8_t mt6701_ab_read_level(gpio_pin_enum pin)
-{
-    return (gpio_get_level(pin) == GPIO_HIGH) ? 1U : 0U;
-}
-
-static uint8_t mt6701_ab_is_active(uint8_t level, uint8_t active_high)
-{
-    return (level == active_high) ? 1U : 0U;
-}
-#endif
-
 void vehicle_hal_force_safe_outputs()
 {
     pwm_set_duty(VEHICLE_LEFT_PWM_PIN, 0U);
@@ -168,39 +291,14 @@ VehicleHalStatus vehicle_hal_init()
     g_right_encoder_raw = 0U;
     status.rear_encoders_ready = true;
 
-#if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_SSI
-    spi_init(VEHICLE_MT6701_SPI_INDEX, VEHICLE_MT6701_SPI_MODE,
-             VEHICLE_MT6701_SPI_HZ, VEHICLE_MT6701_SPI_SCLK,
-             VEHICLE_MT6701_SPI_MOSI, VEHICLE_MT6701_SPI_MISO,
-             VEHICLE_MT6701_SPI_CS);
-    status.steering_sensor_ready = true;
-#elif VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-    encoder_dir_init(VEHICLE_MT6701_AB_COUNTER_INDEX,
-                     VEHICLE_MT6701_AB_COUNTER_A_PIN,
-                     VEHICLE_MT6701_AB_COUNTER_DIR_PIN);
-    encoder_clear_count(VEHICLE_MT6701_AB_COUNTER_INDEX);
-    gpio_init(VEHICLE_MT6701_AB_B_PIN, GPI, GPIO_LOW, GPI_PULL_UP);
-    gpio_init(VEHICLE_MT6701_AB_Z_PIN, GPI, GPIO_LOW, GPI_PULL_UP);
-    g_mt6701_ab_raw = 0U;
-    g_mt6701_ab_timer_previous = static_cast<uint16_t>(encoder_get_count(
-        VEHICLE_MT6701_AB_COUNTER_INDEX));
-    g_mt6701_ab_last_hardware_delta = 0;
-    g_mt6701_ab_continuous_count = 0LL;
-    g_mt6701_ab_last_index_count = 0LL;
-    g_mt6701_ab_last_index_interval_count = 0LL;
-    g_mt6701_ab_state = mt6701_ab_read_state();
-    g_mt6701_ab_z_active = mt6701_ab_is_active(
-        mt6701_ab_read_level(VEHICLE_MT6701_AB_Z_PIN),
-        VEHICLE_MT6701_Z_ACTIVE_HIGH);
-    g_mt6701_ab_index_pulse_count = 0U;
-    g_mt6701_ab_invalid_transition_count = 0U;
-    g_mt6701_ab_dir_mismatch_count = 0U;
-    g_mt6701_ab_index_seen = false;
-    g_mt6701_ab_last_index_interval_valid = false;
-    status.steering_sensor_ready = true;
-#else
-    status.steering_sensor_ready = false;
-#endif
+    spi_init(VEHICLE_STEERING_ENCODER_SPI_INDEX,
+             VEHICLE_STEERING_ENCODER_SPI_MODE,
+             VEHICLE_STEERING_ENCODER_SPI_HZ,
+             VEHICLE_STEERING_ENCODER_SCLK,
+             VEHICLE_STEERING_ENCODER_MOSI,
+             VEHICLE_STEERING_ENCODER_MISO,
+             VEHICLE_STEERING_ENCODER_CS);
+    status.steering_sensor_ready = steering_spi_self_check();
 
     status.imu_ready = (imu963ra_init() == 0U);
     g_imu_unchanged_count = 0U;
@@ -324,87 +422,6 @@ void vehicle_hal_capture_encoder_counts()
     encoder_clear_count(VEHICLE_RIGHT_ENCODER_INDEX);
     g_left_encoder_raw = static_cast<uint16_t>(g_left_encoder_raw + static_cast<uint16_t>(left_delta));
     g_right_encoder_raw = static_cast<uint16_t>(g_right_encoder_raw + static_cast<uint16_t>(right_delta));
-#if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-    {
-        uint16_t timer_current = static_cast<uint16_t>(encoder_get_count(
-            VEHICLE_MT6701_AB_COUNTER_INDEX));
-        int32_t hardware_delta = static_cast<int32_t>(timer_current) -
-            static_cast<int32_t>(g_mt6701_ab_timer_previous);
-        uint8_t current_state = mt6701_ab_read_state();
-        int8_t ab_delta = mt6701_ab_transition_delta(
-            g_mt6701_ab_state, current_state);
-        uint8_t dir_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_DIR_PIN);
-        int8_t dir_sign = (dir_level == VEHICLE_MT6701_DIR_HIGH_IS_POSITIVE)
-            ? 1 : -1;
-        uint8_t z_active = mt6701_ab_is_active(
-            mt6701_ab_read_level(VEHICLE_MT6701_AB_Z_PIN),
-            VEHICLE_MT6701_Z_ACTIVE_HIGH);
-
-        /*
-         * TIM5 is deliberately left free-running.  The signed 16-bit
-         * modular delta preserves edges that would otherwise fall between a
-         * read and a clear operation.  Mechanical steering is many orders of
-         * magnitude below the 32768-edge-per-capture ambiguity limit.
-         */
-        if(hardware_delta > static_cast<int32_t>(INT16_MAX))
-        {
-            hardware_delta -= static_cast<int32_t>(65536);
-        }
-        else if(hardware_delta < static_cast<int32_t>(INT16_MIN))
-        {
-            hardware_delta += static_cast<int32_t>(65536);
-        }
-        g_mt6701_ab_timer_previous = timer_current;
-        g_mt6701_ab_last_hardware_delta = hardware_delta;
-
-        if((current_state != g_mt6701_ab_state) && (ab_delta == 0))
-        {
-            if(g_mt6701_ab_invalid_transition_count < UINT32_MAX)
-            {
-                g_mt6701_ab_invalid_transition_count++;
-            }
-        }
-        g_mt6701_ab_state = current_state;
-        if(ab_delta != 0)
-        {
-            /*
-             * TIM5 A+DIR is the position source.  B is sampled only as a
-             * phase monitor because P10.2 cannot join TIM5 as x4 hardware
-             * quadrature; missed software samples cannot perturb position.
-             */
-            if(((ab_delta > 0) ? 1 : -1) != dir_sign)
-            {
-                if(g_mt6701_ab_dir_mismatch_count < UINT32_MAX)
-                {
-                    g_mt6701_ab_dir_mismatch_count++;
-                }
-            }
-        }
-        if(hardware_delta != 0)
-        {
-            g_mt6701_ab_continuous_count += static_cast<int64_t>(hardware_delta);
-            g_mt6701_ab_raw = static_cast<uint16_t>(static_cast<uint64_t>(
-                g_mt6701_ab_continuous_count) & UINT64_C(0x3FFF));
-        }
-        if((z_active != 0U) && (g_mt6701_ab_z_active == 0U))
-        {
-            if(g_mt6701_ab_index_seen)
-            {
-                g_mt6701_ab_last_index_interval_count =
-                    g_mt6701_ab_continuous_count -
-                    g_mt6701_ab_last_index_count;
-                g_mt6701_ab_last_index_interval_valid = true;
-            }
-            g_mt6701_ab_last_index_count = g_mt6701_ab_continuous_count;
-            g_mt6701_ab_index_seen = true;
-            if(g_mt6701_ab_index_pulse_count < UINT32_MAX)
-            {
-                g_mt6701_ab_index_pulse_count++;
-            }
-        }
-        g_mt6701_ab_z_active = z_active;
-    }
-#endif
 }
 
 void vehicle_hal_get_rear_encoder_raw(uint16_t *left, uint16_t *right)
@@ -427,68 +444,30 @@ void vehicle_hal_zero_rear_encoder_raw()
     g_right_encoder_raw = 0U;
 }
 
-bool vehicle_hal_read_mt6701_ssi(uint32_t *frame_24bits)
+bool vehicle_hal_read_steering_raw(uint16_t *raw_count)
 {
-#if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_SSI
-    uint8_t transmit[3] = {0U, 0U, 0U};
-    uint8_t receive[3] = {0U, 0U, 0U};
-    if(frame_24bits == nullptr)
+    uint8_t transmit[2] = {0U, 0U};
+    uint8_t receive[2] = {0U, 0U};
+    uint16_t frame;
+
+    if(raw_count == nullptr)
     {
         return false;
     }
-    spi_transfer_8bit(VEHICLE_MT6701_SPI_INDEX, transmit, receive, 3U);
-    *frame_24bits = (static_cast<uint32_t>(receive[0]) << 16U) |
-                    (static_cast<uint32_t>(receive[1]) << 8U) |
-                    static_cast<uint32_t>(receive[2]);
-    return true;
-#else
-    static_cast<void>(frame_24bits);
-    return false;
-#endif
-}
-
-bool vehicle_hal_get_mt6701_ab_raw(uint16_t *synthetic_raw)
-{
-#if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-    if(synthetic_raw != nullptr)
-    {
-        *synthetic_raw = g_mt6701_ab_raw;
-        return true;
-    }
-#else
-    static_cast<void>(synthetic_raw);
-#endif
-    return false;
-}
-
-bool vehicle_hal_get_mt6701_ab_status(VehicleMt6701AbStatus *status)
-{
-#if VEHICLE_MT6701_INTERFACE == VEHICLE_MT6701_INTERFACE_AB
-    if(status == nullptr)
+    if(!steering_spi_transfer_bounded(transmit, receive, 2U))
     {
         return false;
     }
-    status->raw = g_mt6701_ab_raw;
-    status->timer_count = g_mt6701_ab_timer_previous;
-    status->continuous_count = g_mt6701_ab_continuous_count;
-    status->last_index_interval_count =
-        g_mt6701_ab_last_index_interval_count;
-    status->last_hardware_delta = g_mt6701_ab_last_hardware_delta;
-    status->a_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_A_PIN);
-    status->b_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_B_PIN);
-    status->z_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_Z_PIN);
-    status->dir_level = mt6701_ab_read_level(VEHICLE_MT6701_AB_DIR_PIN);
-    status->index_pulse_count = g_mt6701_ab_index_pulse_count;
-    status->invalid_transition_count = g_mt6701_ab_invalid_transition_count;
-    status->dir_mismatch_count = g_mt6701_ab_dir_mismatch_count;
-    status->index_seen = g_mt6701_ab_index_seen;
-    status->last_index_interval_valid =
-        g_mt6701_ab_last_index_interval_valid;
+    frame = static_cast<uint16_t>((static_cast<uint16_t>(receive[0]) << 8U) |
+                                  receive[1]);
+    /* The encoder exposes a 12-bit value in bits 15..4; reserved low bits
+       must stay zero so a stuck 0xFFFF/bus frame is not accepted as 4095. */
+    if((frame & 0x000FU) != 0U)
+    {
+        return false;
+    }
+    *raw_count = static_cast<uint16_t>((frame >> 4U) & 0x0FFFU);
     return true;
-#else
-    static_cast<void>(status);
-    return false;
-#endif
 }
 
 bool vehicle_hal_read_imu(VehicleHalImuRaw *raw)

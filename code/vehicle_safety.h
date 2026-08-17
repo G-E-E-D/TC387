@@ -19,8 +19,10 @@ struct VehicleSafetyConfig
     float wheel_mismatch_min_speed_mps;
     float wheel_mismatch_max_mps;
     float wheel_mismatch_timeout_s;
-    int64_t mt6701_max_delta_count;
-    uint32_t mt6701_error_limit;
+    int64_t steering_max_delta_count;
+    uint32_t steering_error_limit;
+    int64_t mt6701_max_delta_count; /* deprecated alias */
+    uint32_t mt6701_error_limit;     /* deprecated alias */
     float steering_stall_duty;
     int64_t steering_stall_count_delta;
     float steering_stall_timeout_s;
@@ -43,7 +45,8 @@ struct VehicleSafetyInputs
     float right_target_speed_mps;
     float left_motor_duty;
     float right_motor_duty;
-    bool mt6701_communication_ok;
+    bool steering_communication_ok;
+    bool mt6701_communication_ok; /* deprecated alias */
     SteeringSample steering;
     float steering_motor_duty;
     bool imu_communication_ok;
@@ -56,6 +59,8 @@ struct VehicleSafetyInputs
     uint32_t path_capacity;
     bool path_index_valid;
     ReverseTrackerOutput tracker;
+    VehicleGuideTarget guide_target;
+    VehicleForwardTrackerOutput forward_tracker;
     bool controlled_stop_in_progress;
     bool numeric_valid;
     const float *additional_numeric_values;
@@ -81,7 +86,8 @@ struct VehicleSafetyMonitor
     int64_t previous_steering_count;
     uint64_t previous_steering_timestamp_us;
     uint64_t previous_update_timestamp_us;
-    uint32_t mt6701_error_count;
+    uint32_t steering_error_count;
+    uint32_t mt6701_error_count; /* deprecated alias */
     uint32_t tracker_index_loss_count;
     uint32_t monitored_active_flags;
     uint32_t controlled_stop_request_flags;

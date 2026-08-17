@@ -26,10 +26,25 @@ const VehicleCalibration g_vehicle_calibration =
     MEASURE_REQUIRED 0.0f,
 
     MEASURE_REQUIRED 0,
+    MEASURE_REQUIRED 0,
     MEASURE_REQUIRED 0.0f,
     MEASURE_REQUIRED 0.0f,
     MEASURE_REQUIRED 0,
     MEASURE_REQUIRED 0,
+
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
+    MEASURE_REQUIRED 0.0f,
 
     MEASURE_REQUIRED 0.0f,
     MEASURE_REQUIRED 0.0f,
@@ -70,6 +85,32 @@ static bool sign_is_valid(int8_t value)
 static bool duty_is_valid(float value)
 {
     return isfinite(value) && (value >= 0.0f) && (value <= 1.0f);
+}
+
+static bool guide_geometry_is_valid(const VehicleCalibration *calibration)
+{
+    return (calibration != nullptr) &&
+           isfinite(calibration->guide_tag_width_m) &&
+           isfinite(calibration->camera_fx_px) &&
+           isfinite(calibration->camera_fy_px) &&
+           isfinite(calibration->camera_cx_px) &&
+           isfinite(calibration->camera_cy_px) &&
+           isfinite(calibration->camera_position_x_m) &&
+           isfinite(calibration->camera_position_y_m) &&
+           isfinite(calibration->camera_yaw_rad) &&
+           isfinite(calibration->guide_follow_distance_m) &&
+           isfinite(calibration->guide_min_safe_distance_m) &&
+           isfinite(calibration->stage1_max_speed_mps) &&
+           isfinite(calibration->stage1_acceleration_mps2) &&
+           isfinite(calibration->stage1_deceleration_mps2) &&
+           (calibration->guide_tag_width_m > 0.0f) &&
+           (calibration->camera_fx_px > 0.0f) &&
+           (calibration->camera_fy_px > 0.0f) &&
+           (calibration->guide_follow_distance_m > 0.0f) &&
+           (calibration->guide_min_safe_distance_m > 0.0f) &&
+           (calibration->stage1_max_speed_mps > 0.0f) &&
+           (calibration->stage1_acceleration_mps2 > 0.0f) &&
+           (calibration->stage1_deceleration_mps2 > 0.0f);
 }
 
 static bool axis_map_is_valid(const int8_t axis_map[3], const int8_t axis_sign[3])
@@ -176,6 +217,7 @@ bool vehicle_calibration_is_valid(const VehicleCalibration *calibration,
        !sign_is_valid(calibration->left_motor_forward_direction) ||
        !sign_is_valid(calibration->right_motor_forward_direction) ||
        !sign_is_valid(calibration->steering_left_direction) ||
+       (calibration->steering_encoder_center_raw_count > 4095U) ||
        !(calibration->left_meter_per_count > 0.0f) ||
        !(calibration->right_meter_per_count > 0.0f) ||
        (calibration->left_counts_per_wheel_rev <= 0) ||
@@ -192,6 +234,7 @@ bool vehicle_calibration_is_valid(const VehicleCalibration *calibration,
        !(calibration->max_acceleration_mps2 > 0.0f) ||
        !(calibration->max_deceleration_mps2 > 0.0f) ||
        !(calibration->max_lateral_acceleration_mps2 > 0.0f) ||
+       !guide_geometry_is_valid(calibration) ||
        (calibration->steering_left_soft_limit_count == 0) ||
        (calibration->steering_right_soft_limit_count == 0) ||
        ((calibration->steering_left_soft_limit_count < 0) ==

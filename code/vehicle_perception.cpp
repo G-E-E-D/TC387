@@ -11,6 +11,8 @@
 
 static Stage1ControlCommand g_external_command;
 static uint32_t g_command_generation;
+static VehicleGuideTargetTracker g_guide_tracker;
+static VehicleGuideTarget g_guide_target;
 
 void perception_init()
 {
@@ -18,40 +20,50 @@ void perception_init()
     g_external_command.target_steering_rad = 0.0f;
     g_external_command.valid = false;
     g_command_generation = 0U;
+    vehicle_guide_target_init(&g_guide_tracker, nullptr);
+    g_guide_target = {};
 }
 
-void perception_update()
+void perception_configure(const VehicleGuideTargetConfig *guide_config)
+{
+    vehicle_guide_target_init(&g_guide_tracker, guide_config);
+    g_guide_target = {};
+}
+
+void perception_update(uint64_t now_us)
 {
 #if VEHICLE_VISION_ENABLE
     vision_runtime_snapshot_t snapshot;
-    Stage1ControlCommand command;
-    int32_t error_q15;
-
-    /* A predicted/lost frame is deliberately not allowed to drive the car. */
-    if((vision_shared_read(&snapshot) == 0U) ||
-       (snapshot.result.valid == 0U) ||
-       (snapshot.result.predicted > VEHICLE_VISION_MAX_LOST_FRAMES) ||
-       (snapshot.result.confidence < VEHICLE_VISION_MIN_CONFIDENCE))
+    if(vision_shared_read(&snapshot) != 0U)
     {
-        stage1_invalidate_external_command();
-        return;
+        static_cast<void>(vehicle_guide_target_update(
+            &g_guide_tracker, &snapshot, now_us, &g_guide_target));
     }
-
-    error_q15 = static_cast<int32_t>(snapshot.result.error_x_q15);
-    command.target_speed_mps = VEHICLE_VISION_TARGET_SPEED_MPS;
-    /* error_x_q15 is positive when the tag is right; positive vehicle
-     * steering is left, so the visual correction has the opposite sign. */
-    command.target_steering_rad = -(static_cast<float>(error_q15) / 32767.0f) *
-                                  VEHICLE_VISION_STEERING_RAD_LIMIT;
-    command.target_steering_rad = vehicle_clampf(
-        command.target_steering_rad,
-        -STAGE1_MAX_STEERING_RAD,
-        STAGE1_MAX_STEERING_RAD);
-    command.valid = true;
-    stage1_set_external_command(&command);
+    else if(g_guide_target.timestamp_us != 0U &&
+            now_us >= g_guide_target.timestamp_us)
+    {
+        g_guide_target.age_us = now_us - g_guide_target.timestamp_us;
+        g_guide_target.fresh = g_guide_target.age_us <=
+                               g_guide_tracker.config.target_timeout_us;
+        if(!g_guide_target.fresh)
+        {
+            g_guide_target.valid = false;
+        }
+    }
 #else
-    /* Serial DRIVE remains the explicit Stage-1 command source. */
+    static_cast<void>(now_us);
+    g_guide_target = {};
 #endif
+}
+
+bool perception_get_guide_target(VehicleGuideTarget *target)
+{
+    if(target == nullptr)
+    {
+        return false;
+    }
+    *target = g_guide_target;
+    return target->valid;
 }
 
 bool perception_get_stage1_command(Stage1ControlCommand *command)
