@@ -51,7 +51,7 @@
 /******************************************************************************/
 /*----------------------------------Includes----------------------------------*/
 /******************************************************************************/
-#define TEST_T 0
+constexpr auto TEST_T = 0;
 
 #include "Cpu/Std/Ifx_Types.h"
 /******************************************************************************/
@@ -62,19 +62,19 @@
 /*------------------------------Type Definitions------------------------------*/
 /******************************************************************************/
 
-typedef struct
+struct AppInfo
 {
     float32 sysFreq;                /**< \brief Actual SPB frequency */
     float32 cpuFreq;                /**< \brief Actual CPU frequency */
     float32 pllFreq;                /**< \brief Actual PLL frequency */
     float32 stmFreq;                /**< \brief Actual STM frequency */
-} AppInfo;
+};
 
 /** \brief Application information */
-typedef struct
+struct App_Cpu0
 {
     AppInfo info;                               /**< \brief Info object */
-} App_Cpu0;
+};
 
 /******************************************************************************/
 /*------------------------------Global variables------------------------------*/

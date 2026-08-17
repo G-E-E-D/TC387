@@ -63,6 +63,8 @@
 int16 imu963ra_gyro_x = 0, imu963ra_gyro_y = 0, imu963ra_gyro_z = 0;       // 三轴陀螺仪数据      GYRO (陀螺仪)
 int16 imu963ra_acc_x = 0,  imu963ra_acc_y = 0,  imu963ra_acc_z = 0;        // 三轴加速度计数据     ACC  (accelerometer 加速度计)
 int16 imu963ra_mag_x = 0,  imu963ra_mag_y = 0,  imu963ra_mag_z = 0;        // 三轴磁力计数据      MAG  (magnetometer 磁力计)
+int16 imu963ra_temperature = 0;
+uint8 imu963ra_mag_available = 0;
 float imu963ra_transition_factor[3] = {4098, 14.3, 3000};                  // 转换实际值的比例
 
 #if IMU963RA_USE_SOFT_IIC
@@ -345,6 +347,14 @@ void imu963ra_get_mag (void)
     imu963ra_write_acc_gyro_register(IMU963RA_FUNC_CFG_ACCESS, 0x00);
 }
 
+void imu963ra_get_temperature (void)
+{
+    uint8 dat[2];
+
+    imu963ra_read_acc_gyro_registers(IMU963RA_OUT_TEMP_L, dat, 2);
+    imu963ra_temperature = (int16)(((uint16)dat[1] << 8) | dat[0]);
+}
+
 //-------------------------------------------------------------------------------------------------------------------
 // 函数简介     初始化 IMU963RA
 // 参数说明     void
@@ -355,6 +365,7 @@ void imu963ra_get_mag (void)
 uint8 imu963ra_init (void)
 {
     uint8 return_state = 0;
+    imu963ra_mag_available = 0;
     system_delay_ms(10);                                                        // 上电延时
 
 #if IMU963RA_USE_SOFT_IIC
@@ -488,8 +499,13 @@ uint8 imu963ra_init (void)
         if(imu963ra_mag_self_check())
         {
             zf_log(0, "IMU963RA mag self check error.");
+#if IMU963RA_MAG_OPTIONAL
+            imu963ra_write_acc_gyro_register(IMU963RA_FUNC_CFG_ACCESS, 0x00);
+            break;
+#else
             return_state = 1;
             break;            
+#endif
         }
 
         // IMU963RA_MAG_ADDR 寄存器
@@ -520,6 +536,7 @@ uint8 imu963ra_init (void)
 
         imu963ra_write_mag_register(IMU963RA_MAG_ADDR, IMU963RA_MAG_FBR, 0x01);
         imu963ra_connect_mag(IMU963RA_MAG_ADDR, IMU963RA_MAG_OUTX_L);
+        imu963ra_mag_available = 1;
 
         imu963ra_write_acc_gyro_register(IMU963RA_FUNC_CFG_ACCESS, 0x00);       // 关闭HUB寄存器访问
 

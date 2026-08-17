@@ -61,12 +61,12 @@
 #include "zf_common_typedef.h"
 
 //================================================定义 IMU963RA 基本配置================================================
-#define IMU963RA_USE_SOFT_IIC                       (0)                         // 默认使用硬件 SPI 方式驱动
+#define IMU963RA_USE_SOFT_IIC                       (1)                         // 车辆原理图为 P20.11/P20.12 两线接口
 #if IMU963RA_USE_SOFT_IIC                                                       // 这两段 颜色正常的才是正确的 颜色灰的就是没有用的
 //====================================================软件 IIC 驱动====================================================
 #define IMU963RA_SOFT_IIC_DELAY                     (59)                       // 软件 IIC 的时钟延时周期 数值越小 IIC 通信速率越快
 #define IMU963RA_SCL_PIN                            (P20_11)                    // 软件 IIC SCL 引脚 连接 IMU963RA 的 SCL 引脚
-#define IMU963RA_SDA_PIN                            (P20_14)                    // 软件 IIC SDA 引脚 连接 IMU963RA 的 SDA 引脚
+#define IMU963RA_SDA_PIN                            (P20_12)                    // 车辆原理图 SDA 引脚
 //====================================================软件 IIC 驱动====================================================
 #else
 
@@ -110,6 +110,7 @@ typedef enum
 #define IMU963RA_GYRO_SAMPLE_DEFAULT    ( IMU963RA_GYRO_SAMPLE_SGN_2000DPS )    // 在这设置默认的 陀螺仪   初始化量程
 #define IMU963RA_MAG_SAMPLE_DEFAULT     ( IMU963RA_MAG_SAMPLE_8G )              // 在这设置默认的 磁力计   初始化量程
 #define IMU963RA_TIMEOUT_COUNT                      (0x00FF)                    // IMU963RA 超时计数
+#define IMU963RA_MAG_OPTIONAL                       (1)                         // 导航不依赖磁力计
 //================================================定义 IMU963RA 基本配置================================================
 
 
@@ -121,6 +122,7 @@ typedef enum
 #define IMU963RA_FUNC_CFG_ACCESS                    (0x01)
 #define IMU963RA_INT1_CTRL                          (0x0D)
 #define IMU963RA_WHO_AM_I                           (0x0F)
+#define IMU963RA_OUT_TEMP_L                         (0x20)
 #define IMU963RA_CTRL1_XL                           (0x10)
 #define IMU963RA_CTRL2_G                            (0x11)
 #define IMU963RA_CTRL3_C                            (0x12)
@@ -172,6 +174,8 @@ typedef enum
 extern int16 imu963ra_acc_x,  imu963ra_acc_y,  imu963ra_acc_z;                  // 三轴陀螺仪数据      GYRO (陀螺仪)
 extern int16 imu963ra_gyro_x, imu963ra_gyro_y, imu963ra_gyro_z;                 // 三轴加速度计数据     ACC  (accelerometer 加速度计)
 extern int16 imu963ra_mag_x,  imu963ra_mag_y,  imu963ra_mag_z;                  // 三轴磁力计数据      MAG  (magnetometer 磁力计)
+extern int16 imu963ra_temperature;                                               // 原始温度数据
+extern uint8 imu963ra_mag_available;                                             // 磁力计自检状态
 extern float imu963ra_transition_factor[3];                                     // 转换实际值的比例
 //================================================声明 IMU963RA 全局变量================================================
 
@@ -180,6 +184,7 @@ extern float imu963ra_transition_factor[3];                                     
 void    imu963ra_get_acc            (void);                                     // 获取 IMU963RA 加速度计数据
 void    imu963ra_get_gyro           (void);                                     // 获取 IMU963RA 陀螺仪数据
 void    imu963ra_get_mag            (void);                                     // 获取 IMU963RA 磁力计数据
+void    imu963ra_get_temperature    (void);                                     // 获取 IMU963RA 温度数据
 uint8   imu963ra_init               (void);                                     // 初始化 IMU963RA
 //================================================声明 IMU963RA 基础函数================================================
 

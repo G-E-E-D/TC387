@@ -35,6 +35,7 @@
 
 #include "isr_config.h"
 #include "isr.h"
+#include "code/vehicle_hal.h"
 
 // 对于TC系列默认是不支持中断嵌套的，希望支持中断嵌套需要在中断内使用 interrupt_global_enable(0); 来开启中断嵌套
 // 简单点说实际上进入中断后TC系列的硬件自动调用了 interrupt_global_disable(); 来拒绝响应任何的中断，因此需要我们自己手动调用 interrupt_global_enable(0); 来开启中断的响应。
@@ -44,10 +45,7 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, CCU6_0_CH0_INT_VECTAB_NUM, CCU6_0_CH0_ISR_PRIORI
 {
     interrupt_global_enable(0);                     // 开启中断嵌套
     pit_clear_flag(CCU60_CH0);
-
-
-
-
+    vehicle_hal_timer_tick_isr();
 }
 
 
@@ -91,7 +89,6 @@ IFX_INTERRUPT(exti_ch0_ch4_isr, EXTI_CH0_CH4_INT_VECTAB_NUM, EXTI_CH0_CH4_INT_PR
     if(exti_flag_get(ERU_CH0_REQ0_P15_4))           // 通道0中断
     {
         exti_flag_clear(ERU_CH0_REQ0_P15_4);
-		imu660rc_callback();     					// 660RC 模块 INT 更新中断
 
 
     }
@@ -114,7 +111,6 @@ IFX_INTERRUPT(exti_ch1_ch5_isr, EXTI_CH1_CH5_INT_VECTAB_NUM, EXTI_CH1_CH5_INT_PR
     {
         exti_flag_clear(ERU_CH1_REQ10_P14_3);
 
-        tof_module_exti_handler();                  // ToF 模块 INT 更新中断
 
     }
 
@@ -147,7 +143,6 @@ IFX_INTERRUPT(exti_ch3_ch7_isr, EXTI_CH3_CH7_INT_VECTAB_NUM, EXTI_CH3_CH7_INT_PR
     if(exti_flag_get(ERU_CH3_REQ6_P02_0))           // 通道3中断
     {
         exti_flag_clear(ERU_CH3_REQ6_P02_0);
-        camera_vsync_handler();                     // 摄像头触发采集统一回调函数
     }
     if(exti_flag_get(ERU_CH7_REQ16_P15_1))          // 通道7中断
     {
@@ -165,7 +160,6 @@ IFX_INTERRUPT(exti_ch3_ch7_isr, EXTI_CH3_CH7_INT_VECTAB_NUM, EXTI_CH3_CH7_INT_PR
 IFX_INTERRUPT(dma_ch5_isr, DMA_INT_VECTAB_NUM, DMA_INT_PRIO)
 {
     interrupt_global_enable(0);                     // 开启中断嵌套
-    camera_dma_handler();                           // 摄像头采集完成统一回调函数
 }
 // **************************** DMA中断函数 ****************************
 
@@ -201,7 +195,6 @@ IFX_INTERRUPT(uart1_tx_isr, UART1_INT_VECTAB_NUM, UART1_TX_INT_PRIO)
 IFX_INTERRUPT(uart1_rx_isr, UART1_INT_VECTAB_NUM, UART1_RX_INT_PRIO)
 {
     interrupt_global_enable(0);                     // 开启中断嵌套
-    camera_uart_handler();                          // 摄像头参数配置统一回调函数
 }
 
 // 串口2默认连接到无线转串口模块
@@ -216,7 +209,6 @@ IFX_INTERRUPT(uart2_tx_isr, UART2_INT_VECTAB_NUM, UART2_TX_INT_PRIO)
 IFX_INTERRUPT(uart2_rx_isr, UART2_INT_VECTAB_NUM, UART2_RX_INT_PRIO)
 {
     interrupt_global_enable(0);                     // 开启中断嵌套
-    wireless_module_uart_handler();                 // 无线模块统一回调函数
 
 
 
@@ -234,7 +226,6 @@ IFX_INTERRUPT(uart3_tx_isr, UART3_INT_VECTAB_NUM, UART3_TX_INT_PRIO)
 IFX_INTERRUPT(uart3_rx_isr, UART3_INT_VECTAB_NUM, UART3_RX_INT_PRIO)
 {
     interrupt_global_enable(0);                     // 开启中断嵌套
-    gnss_uart_callback();                           // GNSS串口回调函数
 
 
 
